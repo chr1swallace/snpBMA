@@ -1,0 +1,17 @@
+Package: snpBMA
+Maintainer: Chris Wallace <cew54@cam.ac.uk>
+Author: chrisw
+Version: 0.1
+License: GPL-3
+Title: BMA exploration of multi-SNP models in genetic association testing
+Description: 
+Depends:
+    snpStats,
+    BMA,
+    ggplot2
+Suggests:
+    testthat,
+    roxygen2,
+    parallel
+Collate:
+    'bma-functions.R'

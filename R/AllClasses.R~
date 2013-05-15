@@ -1,0 +1,5 @@
+setClass("snpBMAdata",
+         representation(X="matrix",
+                        Y="numeric",
+                        family="character"))
+snpBMA <- 

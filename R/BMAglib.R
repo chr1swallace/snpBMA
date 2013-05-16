@@ -184,13 +184,15 @@ function (x, y, n = rep(1, nrow(x)), error = "poisson", link = "log",
         model1 <- c(1, model + 1)
         if (is.numeric(prior.spec$var)) {
             sigma <- Aot$A
-            sig11 <- sigma[model1, model1]
-            sig12 <- sigma[model1, -model1]
-            sig21 <- sigma[-model1, model1]
-            sig22 <- sigma[-model1, -model1]
-            if (length(model1) != ncol(Aot$A)) 
-                pvar <- sig11 - sig12 %*% solve(sig22) %*% sig21
-            else pvar <- sigma
+            if (length(model1) != ncol(Aot$A)) {
+              sig11 <- sigma[model1, model1]
+              sig12 <- sigma[model1, -model1]
+              sig21 <- sigma[-model1, model1]
+              sig22 <- sigma[-model1, -model1]
+              pvar <- sig11 - sig12 %*% solve(sig22) %*% sig21
+            } else {
+              pvar <- sigma
+            }
         }
         else {
             A <- Aot$A[model1, model1]
@@ -536,29 +538,28 @@ function (x, y, n = rep(1, nrow(x)), error = "poisson", link = "log",
     post.sd <- matrix(rep(0, (ncol(x) * nphi)), ncol = nphi)
     postprob <- matrix(rep(0, (nmodel * nphi)), ncol = nphi)
     prior.var <- as.list(rep(0, nmodel))
+    npar <- rowSums(models) + 1
     for (i in (1:nmodel)) {
-        if (sum(models[i, ]) == 0) {
-            npar[i] <- 1
+        if (npar[i]==1) {
             prior.var[[i]] <- array(rep(0, nphi), dim = c(1, 
                 1, nphi))
             for (j in (1:nphi)) prior.var[[i]][, , j] <- psi^2 * 
                 Aot$varz
-        }
-        else {
+        } else {
             model <- (1:ncol(x))[models[i, ] == 1]
-            npar[i] <- length(model) + 1
             prior.var[[i]] <- array(rep(0, npar[i] * npar[i] * 
                 nphi), dim = c(npar[i], npar[i], nphi))
             for (j in (1:nphi)) prior.var[[i]][, , j] <- glim.pvar(model, 
                 phi[j], psi, Aot, prior.spec)$pvar
         }
     }
+
     for (i in (1:nmodel)) 
     {
-        if (sum(models[i, ]) == 0) 
+        if (npar[i]==1) 
 	{
             chi2[i] <- 0
-            npar[i] <- 1
+##            npar[i] <- 1
             app1[i, ] <- 0
             betahat <- glimot0$coef
             glim.coef[[i]] <- betahat
@@ -570,11 +571,11 @@ function (x, y, n = rep(1, nrow(x)), error = "poisson", link = "log",
         }
         else 
 	{
-            model <- (1:ncol(x))[models[i, ] == 1]
+            model <- which(models[i, ] == 1)
             glimot1 <- glim(x[, model], y, n = n, error = error, 
                 link = link, scale = scale)
             chi2[i] <- (glimot0$deviance[2] - glimot1$deviance[2])/scale
-            npar[i] <- sum(models[i, ]) + 1
+  ##          npar[i] <- sum(models[i, ]) + 1
             E1ot <- E1(model, phi, psi, glimot1, Aot, prior.spec)
             app1[i, ] <- chi2[i] + (E1ot$app1 - E0ot$app1)
             betahat <- glimot1$coef
@@ -587,7 +588,7 @@ function (x, y, n = rep(1, nrow(x)), error = "poisson", link = "log",
         }
 
 
-        if (sum(models[i, ]) == 0) 
+        if (npar[i]==1)
 	{
             prior.mean <- pmean1[1]
             postbym.mean[[i]] <- matrix(rep(0, nphi), ncol = nphi)
@@ -636,18 +637,15 @@ function (x, y, n = rep(1, nrow(x)), error = "poisson", link = "log",
 	{
             tmp1 <- 0
             tmp2 <- 0
-            for (i in (1:nmodel)) 
-	    {
-                if (models[i, k] == 1) 
-		{
-                    pos <- sum(models[i, (1:k)]) + 1
-                    tmp1 <- tmp1 + postbym.mean[[i]][pos, j] * postprob[i, j]
-                    tmp2 <- tmp2 + (postbym.sd[[i]][pos, j]^2 + 
-                            postbym.mean[[i]][pos, j]^2) * postprob[i, j]
-                }
-                post.mean[k, j] <- tmp1/(1 - prob0[k, j])
-                post.sd[k, j] <- sqrt(tmp2/(1 - prob0[k, j]) - post.mean[k, j]^2)
+            wh <- which(models[,k]==1)
+            for (i in wh) {
+              pos <- sum(models[i, (1:k)]) + 1
+              tmp1 <- tmp1 + postbym.mean[[i]][pos, j] * postprob[i, j]
+              tmp2 <- tmp2 + (postbym.sd[[i]][pos, j]^2 + 
+                              postbym.mean[[i]][pos, j]^2) * postprob[i, j]
             }
+            post.mean[k, j] <- tmp1/(1 - prob0[k, j])
+            post.sd[k, j] <- sqrt(tmp2/(1 - prob0[k, j]) - post.mean[k, j]^2)
         }
     }
     inputs <- list(x = x, y = y, n = n, error = error, link = link, 

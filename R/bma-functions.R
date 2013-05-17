@@ -198,9 +198,9 @@ bind.2 <- function(x,y=NULL) {
   beg <- c(1,cumsum(nc)[-length(nc)]+1)
   end <- cumsum(nc)
   if(all(sapply(x,"class")=="matrix")) {
-    mat <- matrix(NA,nrow=nrow(ind),ncol=sum(nc))
+    mat <- matrix(0,nrow=nrow(ind),ncol=sum(nc))
   } else {
-    mat <- Matrix(NA,nrow=nrow(ind),ncol=sum(nc),sparse=TRUE)
+    mat <- Matrix(0,nrow=nrow(ind),ncol=sum(nc),sparse=TRUE)
   }
   for(i in 1:length(ind))
     mat[, beg[[i]]:end[[i]] ] <- x[[i]][ ind[[i]], ]
@@ -210,76 +210,83 @@ bind.2 <- function(x,y=NULL) {
 }
 
 
-library(Matrix)
-make.models <- function(snps,n.use,groups=NULL,quiet=FALSE) {
-  if(is.null(groups) || n.use==1) { # simple
-    combs <- combn(length(snps),n.use)
-    if(!quiet)
-      cat("groups not needed, creating a model matrix of",ncol(combs),"x",length(snps),".\n")
-    models <- Matrix(0,ncol(combs),length(snps),sparse=TRUE)
-    colnames(models) <- snps
-    ind <- cbind(as.vector(col(combs)),as.vector(combs))
-    models[ind] <- 1
-  } else {
-    n.groups <- sapply(groups,length)
-    if(length(snps) != sum(n.groups) || !all(snps %in% unlist(groups)))
-      stop("all snps should be in a single group")
+make.models.single <- function(snps,n.use,quiet=FALSE) {
+  combs <- combn(length(snps),n.use)
+  if(!quiet)
+    cat("groups not needed, creating a model matrix of",ncol(combs),"x",length(snps),".\n")
+  models <- Matrix(0,ncol(combs),length(snps),sparse=TRUE)
+  colnames(models) <- snps
+  ind <- cbind(as.vector(col(combs)),as.vector(combs))
+  models[ind] <- 1
+  return(models)
+}
 
-    if(all(n.groups==1)) ## all singletons, ignore grouping
-      return(make.models(snps,n.use,groups=NULL,quiet=TRUE))
+make.models.multi <- function(snps,n.use,groups,quiet=FALSE) {
+  n.groups <- sapply(groups,length)
+  combs <- combn(length(n.groups),n.use)
+  models.list <- lapply(n.groups, function(n) {
+    diag(nrow=n,ncol=n)
+  })
+  models <- vector("list",ncol(combs))
+  for(j in 1:ncol(combs)) {
+    ##        cat(".")
+    models[[j]] <- bind.2(models.list[ combs[,j] ])
+    models[[j]] <- cbind(models[[j]],
+                         matrix(0,nrow(models[[j]]), sum(n.groups[ -combs[,j] ])))
+    colnames(models[[j]]) <- c(unlist(groups[ combs[,j] ]), unlist(groups[ -combs[,j] ]))
+    models[[j]] <- models[[j]][,snps]
+  }
+  nr <- sapply(models,nrow)
+  models.final <- Matrix(0,sum(nr),ncol(models[[1]]))
+  colnames(models.final) <- snps
+  end <- cumsum(nr)
+  beg <- c(1,end[-length(end)]+1)
+  for(j in 1:length(models)) {
+    models.final[beg[[j]]:end[[j]],] <- models[[j]]
+  }
+  ##      models <- do.call("rBind",models)
+  return(models.final)
+}
 
-    if(all(n.groups>1)) { ## all multi, generate models
-      combs <- combn(length(n.groups),n.use)
-      models.list <- lapply(n.groups, function(n) {
-        diag(nrow=n,ncol=n)
- ##       Matrix(diag(nrow=n,ncol=n),sparse=TRUE)
-      })
-      models <- vector("list",ncol(combs))
-      for(j in 1:ncol(combs)) {
-        ##        cat(".")
-        models[[j]] <- bind.2(models.list[ combs[,j] ])
-        models[[j]] <- cbind(models[[j]],
-                             matrix(0,nrow(models[[j]]), sum(n.groups[ -combs[,j] ])))
-        colnames(models[[j]]) <- c(unlist(groups[ combs[,j] ]), unlist(groups[ -combs[,j] ]))
-        models[[j]] <- models[[j]][,snps]
-      }
-      nr <- sapply(models,nrow)
-      models.final <- Matrix(0,sum(nr),ncol(models[[1]]))
-      colnames(models.final) <- snps
-      end <- cumsum(nr)
-      beg <- c(1,end[-length(end)]+1)
-      for(j in 1:length(models)) {
-        models.final[beg[[j]]:end[[j]],] <- models[[j]]
-      }
-##      models <- do.call("rBind",models)
-      return(models.final)
-    }
-
-    ## mixed single and multi
-    ## deal with single snp groups first - these are easy
-    which.single <- which(n.groups==1)
-    if(!quiet)
-      cat("mixture of",length(groups)-length(which.single),"groups and",length(which.single),"singles.\n")
-    if(!quiet)
-      cat("singles first...\n")
-    single.list <- c(list(matrix(0,nrow=1,ncol=length(which.single))),
-                     mclapply(as.list(1:n.use), function(i) { make.models(unlist(groups[which.single]), n.use=i,quiet=TRUE) }))
-      ## now each of these needs to bind.2 with all n:0 possibilities from remainder
-    if(!quiet)
-      cat("multis next...\n")
-      multi.list <- c(lapply(as.list(n.use:1), function(i) {
-        make.models(unlist(groups[-which.single]), n.use=i, groups=groups[-which.single], quiet=TRUE)
-      }),
-                      list(matrix(0,nrow=1,ncol=sum(n.groups) - length(which.single))))
-    if(!quiet)
-      cat("bind.2\n")
-    models.list <- mcmapply(bind.2, single.list, multi.list)
-    if(!quiet)
-      cat("finally rBind\n")
-    models <- do.call("rBind",models.list)
-    colnames(models) <- c(unlist(groups[which.single]),unlist(groups[-which.single]))
-    models <- models[,snps]
-  } 
+make.models <- function(snps,n.use,groups=list(),quiet=FALSE) {
+  if(!length(groups) || n.use==1) # simple
+    return(make.models.single(snps,n.use,quiet))
+  
+  n.groups <- sapply(groups,length)
+  if(length(snps) != sum(n.groups) || !all(snps %in% unlist(groups)))
+    stop("all snps should be in a single group")
+  
+  if(all(n.groups==1)) ## all singletons, ignore grouping
+    return(make.models.single(snps,n.use,quiet=TRUE))
+  
+  if(all(n.groups>1)) ## all multi, generate models
+    return(make.models.multi(snps,n.use,groups,quiet=TRUE))
+  
+  ## mixed single and multi
+  ## deal with single snp groups first - these are easy
+  which.single <- which(n.groups==1)
+  if(!quiet)
+    cat("mixture of",length(groups)-length(which.single),"groups and",length(which.single),"singles.\n")
+  if(!quiet)
+    cat("singles first...\n")
+  single.list <- c(list(Matrix(0,nrow=1,ncol=length(which.single),sparse=TRUE)),
+                   mclapply(as.list(1:n.use), function(i) {
+                     make.models(unlist(groups[which.single]), n.use=i,quiet=TRUE) }))
+  ## now each of these needs to bind.2 with all n:0 possibilities from remainder
+  if(!quiet)
+    cat("multis next...\n")
+  multi.list <- c(lapply(as.list(n.use:1), function(i) {
+    make.models(unlist(groups[-which.single]), n.use=i, groups=groups[-which.single], quiet=TRUE)
+  }),
+                  list(Matrix(0,nrow=1,ncol=sum(n.groups) - length(which.single),sparse=TRUE)))
+  if(!quiet)
+    cat("bind.2\n")
+  models.list <- mcmapply(bind.2, single.list, multi.list)
+  if(!quiet)
+    cat("finally rBind\n")
+  models <- do.call("rBind",models.list)
+  colnames(models) <- c(unlist(groups[which.single]),unlist(groups[-which.single]))
+  models <- models[,snps]
   return(models)
 }
 
@@ -300,19 +307,18 @@ my.glib <- function(data, models) {
     njobs <- min(max(options()$mc.cores, 1), nrow(models)) # don't need more than 1 core per model
     index <- rep(1:njobs, length=nrow(models))
     inner.function <- function(j) {
-      glib(data@X, data@Y, error=error, link=link, models=models[j,,drop=FALSE])
+      glib(data@X, data@Y, error=error, link=link, models=models[j,,drop=FALSE])$bf$twologB10
     }
     index.split <- split(1:nrow(models), index)
     inner.results <- mclapply(index.split, inner.function)
     ## collate results
-    bf <- do.call("rbind",lapply(inner.results, function(x) x$bf$twologBF10))
-    models <- models[ unlist(index.split), ]
-  }
-  
+    bf <- do.call("rbind",inner.results)
+    models <- models[ unlist(index.split) , ]
+  }  
   return(list(models=models,bf=bf))
 }
 
-bma.nsnps <- function(data,nsnps=1, groups=NULL) {
+bma.nsnps <- function(data,nsnps=1, groups=list()) {
   if(nsnps<1 || nsnps>ncol(data@X))
     stop("nsnps must lie between 1 and ncol(data@X) inclusive")
   models <- make.models(colnames(data@X), nsnps, groups=groups)
@@ -320,6 +326,7 @@ bma.nsnps <- function(data,nsnps=1, groups=NULL) {
   return(new("snpBMA",
              nsnps=nsnps,
              snps=tags,
+             groups=groups,
              bf=x$bf,
              models=x$models))             
 }

@@ -8,10 +8,11 @@ Description:
 Depends:
     snpStats,
     BMA,
-    ggplot2
+    Matrix
 Suggests:
     testthat,
     roxygen2,
-    parallel
+    parallel,
+    ggplot2
 Collate:
     'bma-functions.R'

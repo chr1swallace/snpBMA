@@ -177,19 +177,36 @@ make.models <- function(snps,n.use,groups=list(),quiet=FALSE) {
 
 ##' Compare potential parent and child models according to BF
 ##'
-##' .. content for \details{} ..
+##' Returns models whose children SHOULD NOT be visited
 ##' @title mcomp
 ##' @param parents snpBMA object
 ##' @param children snpBMA object
 ##' @param ... arguments passed to mcomp.detail()
 ##' @return a Matrix containing all child models for which twologBF (parent/child) > 2*log(rel.prior)
 ##' @author Chris Wallace
-mcomp <- function(parents, children, ...) {
+models.diff <- function(parents, children, ...) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
   return(mcomp.detail(m.parent=parents@models, m.child=children@models,
                       bf.parent=parents@bf, bf.child=children@bf,
-                      ntarget=parents@nsnps, ...))
+                      ntarget=parents@nsnps, what="drop", ...))
+}
+
+##' Compare potential parent and child models according to BF
+##'
+##' Returns models whose children SHOULD be visited
+##' @title mcomp
+##' @param parents snpBMA object
+##' @param children snpBMA object
+##' @param ... arguments passed to mcomp.detail()
+##' @return a Matrix containing all child models for which twologBF (parent/child) > 2*log(rel.prior)
+##' @author Chris Wallace
+models.prune <- function(parents, children, ...) {
+  ## for each child model, identify its parents
+  ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
+  return(mcomp.detail(m.parent=parents@models, m.child=children@models,
+                      bf.parent=parents@bf, bf.child=children@bf,
+                      ntarget=parents@nsnps, n.child=children@nsnps, what="keep", ...))
 }
 
 ##' @param m.parent 
@@ -200,7 +217,7 @@ mcomp <- function(parents, children, ...) {
 ##' @param prior.parents 
 ##' @param prior.children 
 ##' @param quiet 
-mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget, prior.parents, prior.children, pp.fold=10, quiet=FALSE) {
+mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget, n.child, prior.parents, prior.children, what, pp.fold=10, quiet=FALSE) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
 
@@ -219,12 +236,15 @@ mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget, prior.
   child.any <- apply(cmp1 & cmp2, 2, any)
   if(!quiet)
     cat("Identified",sum(child.any),"of",nrow(m.child),
-        "models with pp(parent) > pp(child)\n")
-  models.drop <- m.child[child.any,,drop=FALSE ]
-  models.keep <- m.child[!child.any,,drop=FALSE]
-  snps.drop <- apply(models.keep==0,2,all)
-  return( new("dropModels", models=models.drop, snps=colnames(m.child)[snps.drop] ) )
-  ## return( list(models=m.child[child.any,!child.all], snps=colnames(m.child)[child.all] ) )
+        "models with pp(parent) >", pp.fold,"* pp(child)\n")
+  if(what=="keep") {
+    return(new("Models",models=m.child[!child.any,,drop=FALSE], nsnps=n.child))
+  }
+  if(what=="drop") {
+    models.drop <- m.child[child.any,,drop=FALSE ]
+    snps.drop <- apply(models.keep==0,2,all)
+    return( new("dropModels", models=models.drop, snps=colnames(m.child)[snps.drop] ) )
+  }
 }
 
 mdrop <- function(models, drop, quiet=FALSE) {
@@ -254,82 +274,12 @@ mdrop <- function(models, drop, quiet=FALSE) {
   return(models)
 }
 
-relate <- function(parents, children, name.parent="parent", name.child="child",
-                   prior.parent=NULL, prior.child=NULL) {
-  m.parent=parents@models
-  m.child=children@models
-  bf.parent=parents@bf
-  bf.child=children@bf
-  ntarget=parents@nsnps
-  cols.use <- intersect(colnames(m.parent),colnames(m.child))
-  relate <- m.parent[,cols.use] %*% Matrix::t(m.child[,cols.use])
-  index <- Matrix::which(relate==ntarget, arr.ind=TRUE)
-#  rel.prior <- 2*(log(prior.children) - log(prior.parents))
-  relate2 <- Matrix(0,nrow(relate),ncol(relate),sparse=TRUE)
-  relate2[index] <- bf.parent[ index[,1], 2 ] - bf.child[ index[,2], 2]
-  dimnames(relate2) <- list(paste(name.parent,1:nrow(relate2),sep="-"),
-                            paste(name.child,1:ncol(relate2),sep="-"))
-  g <- graph.incidence(relate2)
-  g <- set.vertex.attribute(g, "group", rownames(relate2), name.parent)
-  g <- set.vertex.attribute(g, "group", colnames(relate2), name.child)
-  g <- set.vertex.attribute(g, "BF", rownames(relate2), bf.parent[,2])
-  g <- set.vertex.attribute(g, "BF", colnames(relate2), bf.child[,2])
-  if(!is.null(prior.parent))
-    g <- set.vertex.attribute(g, "pp", rownames(relate2), bf.parent[,2] + 2*log(prior.parent))
-  if(!is.null(prior.child))
-    g <- set.vertex.attribute(g, "pp", colnames(relate2), bf.child[,2] + 2*log(prior.child))
-  return(g)
+mgrow <- function(models, groups=list(), quiet=FALSE) {
+
+  models.new <- make.models(colnames(models), n.use=1, groups=groups)
+  ## TODO !!!!
+
 }
 
-vertex.colour <- function(g, name, n=20) {
-  v <- get.vertex.attribute(g, name)
-  cols <- heat.colors(n)
-  vc <- cut(v, n)
-  set.vertex.attribute(g, "color", index=V(g), value=cols[ as.numeric(vc) ])
-}
 
-edge.colour <- function(g, name, n=20) {
-  v <- get.edge.attribute(g, name)
-  cols <- heat.colors(n)
-  vc <- cut(v, n)
-  set.edge.attribute(g, "color", index=V(g), value=cols[ as.numeric(vc) ])
-}
-
-vertex.shape <- function(g, name) {
-  shape.names <- c("circle", "square", "csquare", "rectangle", "crectangle",
-                   "vrectangle", "pie")  
-  v <- factor(get.vertex.attribute(g, name))
-  set.vertex.attribute(g, "shape", index=V(g), value=shape.names[ as.numeric(v) ])
-}
-
-vertex.size <- function(g, name, offset=5) {
-  v <- factor(get.vertex.attribute(g, name))
-  sizes <- seq_along( levels(v) ) + offset
-  set.vertex.attribute(g, "size", index=V(g), value=sizes[ as.numeric(v) ])
-}
-
-vertex.xy <- function(g, xname, yname) {
-  x <- as.numeric(factor(get.vertex.attribute(g, xname)))
-  y <- get.vertex.attribute(g, yname)
-  g <- set.vertex.attribute(g, "x", index=V(g), value=x)
-  g <- set.vertex.attribute(g, "y", index=V(g), value=y)
-}
-
-add.attributes <- function(g) {
-  g <- vertex.colour(g, "pp")
-#  g <- edge.colour(g, "weight")
-#  g <- vertex.size(g, "group")
-  g <- vertex.xy(g, "group", "pp")
-}
-
-graphs.merge <- function(gList) {
-  dfList <- lapply(gList, get.data.frame, what="both")
-  
-  eList <- lapply(dfList, "[[", 2)
-  vList <- lapply(dfList, "[[", 1)
-  vList <- lapply(vList, function(v) v[, setdiff(colnames(vList[[1]]), "type")])
-  e <- do.call("rbind",eList)
-  v <- unique(do.call("rbind", vList))
-  g <- graph.data.frame(d=e, directed=FALSE, vertices=v)
-  return(g)
-}
+## + should add colnames, rownames etc

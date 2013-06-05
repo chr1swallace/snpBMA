@@ -24,11 +24,20 @@ head(ss1 <- snp.summary(bma.1))
 data2 <- make.data(X, Y,tags=tags,family="gaussian")
 
 bma.2 <- bma.nsnps(data, nsnps=2)
+
+
 bma.2d <- bma.nsnps(data2, nsnps=2)
 
 priors <- prior.nsnps(0:10, unique(tags), expected=3)
 plot(0:10,priors, type="b")
 priors <- prior.nsnps(1:10, unique(tags), expected=3)
+
+md <- models.diff(parents=bma.1, children=bma.2d,
+                  prior.parents=priors[1],
+                  prior.children=priors[2])
+mp <- models.prune(parents=bma.1, children=bma.2d,
+                  prior.parents=priors[1],
+                  prior.children=priors[2])
 
 models.drop <- mcomp(parents=bma.1, children=bma.2d,
                      prior.parents=priors[1],
@@ -39,7 +48,7 @@ bma.3dd <- bma.nsnps(data2, nsnps=3, models.drop=models.drop)
 
 ## now check which models were dropped, plot network, was it sensible?
 
-bma <- list(bma.1, bma.2, bma.3)
+bma <- list(bma.1, bma.2, bma.3, bma.4)
 bma <- list(bma.1, bma.2d, bma.3dd)
 
 gplot <- function(bma) {

@@ -1,6 +1,6 @@
 ##' Binomial prior for number of SNPs in a model
 ##'
-##' @title prior.nsnps
+##' @title prior.binomial
 ##' @param x number of SNPs in a model (defaults to 1:length(groups), ie returns a vector)
 ##' @param groups groups of SNPs, from which at most one SNP should be selected
 ##' @param expected expected number of SNPs in a model
@@ -32,9 +32,14 @@ prior.binomial <- function(x=1:n, n=length(groups), expected, groups=NULL) {
 ##' information about the number of causal SNPs, and, particularly if
 ##' the posterior model choice is sensitive to this prior, it can be
 ##' useful to consider a prior with greater spread.  One such choice
-##' is the beta binomial model, implemented here.
+##' is the beta binomial model, implemented here, under which the
+##' number of SNPs follows a binomial distribution with parameters n,
+##' p while p follows a beta distribution with parameters chosen so
+##' that the mean and the overdispersion (relative to a binomial
+##' distribution) of the number of SNPs is as specified by
+##' \code{expected} and \code{overdispersion}, respectively.
 ##' 
-##' @title prior.nsnps
+##' @title prior.betabinomial
 ##' @param x number of SNPs in a model (defaults to 1:length(groups), ie returns a vector)
 ##' @param groups groups of SNPs, from which at most one SNP should be selected
 ##' @param expected expected number of SNPs in a model
@@ -76,10 +81,4 @@ prior.betabinomial <- function(x=1:n, n=length(groups), expected, overdispersion
   p <- expected/n
   rho <- (overdispersion - 1)/(n-1)
   dbetabinom(x, size=n, prob=p, rho=rho)             
-}
-
-solve.bb <- function(pi, rho) {
-  alpha <- (1-rho)*pi/(rho*pi + rho*(1-pi))
-  beta <- alpha*(1-pi)/pi
-  return(list(alpha=alpha,beta=beta))
 }

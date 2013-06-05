@@ -1,41 +1,28 @@
-setClass("snpBMAdata",
-         representation(X="matrix",
-                        Y="numeric",
-                        family="character",
-                        tags="character"),
+################################################################################
+## Models
+
+setClass("Models",
+         representation(models="dgCMatrix",
+                        nsnps="numeric"),
          validity=function(object) {
-           if(length(object@Y) != nrow(object@X))
-             stop("phenotype vector Y must have length == nrow(X)")
+           if(!all(rowSums(object@models) == object@nsnps))
+             stop("Each model matrix should contain models with a fixed colSums()")
          })
-setClass("snpBMA",
-         representation(nsnps="numeric",
-                        nmodels="numeric",
-                        snps="character",
-                        groups="list",
-                        bf="matrix",
-                        models="Matrix"),
-         validity=function(object) {
-           if(nrow(object@bf) != nrow(object@models))
-             stop("bf must have same nrow as models")
-           if(length(unique(object@snps)) != ncol(object@models))
-             stop("models must have ncol == length(unique(snps))")
-         })
-setMethod("show", signature="snpBMA",
+setMethod("show", signature="Models",
           function(object) {
             nmod <- nrow(object@models)
             nsnp <- ncol(object@models)
-            n.use <- apply(object@models,1,sum)
-            cat("Bayes factors for",nmod,"models from",object@nmodels,"possible models using",nsnp,"SNPs.\nSNPs per model:\n")
-            print(table(n.use))
-            cat("Top models:\n")
-            print(top.models(object))
+            cat(nmod,"models, each including",object@nsnps,"out of",nsnp,"SNPs.\n")
+          })
+setGeneric("models", function(object){ standardGeneric ("models") })
+setMethod("models","Models",
+          function(object) {
+            return(object@models)
           })
 
-
-
 setClass("dropModels",
-         representation(models="dgCMatrix",
-                        snps="character"),
+         representation(snps="character"),
+         contains="Models",
          validity=function(object) {
            if(object@snps %in% colnames(object@models))
              stop("models to be dropped must be formed only from SNPs which have NOT been dropped.")
@@ -67,11 +54,6 @@ setMethod("snps","dropModels",
           function(object) {
             return(object@snps)
           })
-setGeneric("models", function(object){ standardGeneric ("models") })
-setMethod("models","dropModels",
-          function(object) {
-            return(object@models)
-          })
 setGeneric("stackModels", function(object) { standardGeneric ("stackModels") })
 setMethod("stackModels","list",
           function(object) {
@@ -87,3 +69,37 @@ setMethod("stackModels","list",
                 models=do.call("rBind",lapply(object, models)),
                 snps=snps.drop)
           })
+################################################################################
+## snpBMA, snpBMAdata
+setClass("snpBMAdata",
+         representation(X="matrix",
+                        Y="numeric",
+                        family="character",
+                        tags="character"),
+         validity=function(object) {
+           if(length(object@Y) != nrow(object@X))
+             stop("phenotype vector Y must have length == nrow(X)")
+         })
+setClass("snpBMA",
+         representation(nmodels="numeric",
+                        snps="character",
+                        groups="list",
+                        bf="matrix"),
+         contains="Models",
+         validity=function(object) {
+           if(nrow(object@bf) != nrow(object@models))
+             stop("bf must have same nrow as models")
+           if(length(unique(object@snps)) != ncol(object@models))
+             stop("models must have ncol == length(unique(snps))")
+         })
+setMethod("show", signature="snpBMA",
+          function(object) {
+            nmod <- nrow(object@models)
+            nsnp <- ncol(object@models)
+            n.use <- apply(object@models,1,sum)
+            cat("Bayes factors for",nmod,"models from",object@nmodels,"possible models using",nsnp,"SNPs.\nSNPs per model:\n")
+            print(table(n.use))
+            cat("Top models:\n")
+            print(top.models(object))
+          })
+

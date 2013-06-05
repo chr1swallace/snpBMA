@@ -1,6 +1,6 @@
 Package: snpBMA
 Maintainer: Chris Wallace <cew54@cam.ac.uk>
-Author: chrisw
+Author: Chris Wallace <cew54@cam.ac.uk>
 Version: 0.1
 License: GPL-3
 Title: BMA exploration of multi-SNP models in genetic association testing
@@ -16,3 +16,10 @@ Suggests:
     ggplot2
 Collate:
     'bma-functions.R'
+    'AllClasses.R'
+    'model-functions.R'
+    'snpBMA-package.r'
+    'summary-functions.R'
+    'priors.R'
+Imports:
+    Matrix

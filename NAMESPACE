@@ -1,0 +1,5 @@
+export(prior.betabinomial)
+export(prior.binomial)
+export(prior.nsnps)
+import(Matrix)
+import(VGAM)

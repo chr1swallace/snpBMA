@@ -79,6 +79,22 @@ l.c <- function(L,d1,d2) {
   do.call("c", lapply(L, function(x) x[[ d1 ]][[ d2 ]]))
 }
 
+myr2 <- function(X) {
+  r2 <- ld(X,
+           depth=ncol(X)-1,
+           symmetric=TRUE,
+           stat="R.squared")
+  if(any(is.na(r2))) {
+    r2.na <- as(is.na(r2),"matrix")
+    use <- rowSums(r2.na)>0
+    ## work around for r2=NA bug.  
+    r2.cor <- as(cor(as(X[,use,drop=FALSE],"numeric"), use="pairwise.complete.obs")^2,"Matrix")
+    r2[ which(r2.na) ] <- r2.cor[ which(r2.na[use,use]) ]
+  }
+  diag(r2) <- 1
+  return(r2)
+}
+
 ##' Derive tag SNPs for a SnpMatrix object using heirarchical clustering
 ##'
 ##' Uses complete linkage and the \code{\link{hclust}} function to define clusters, then cuts the tree at 1-tag.threshold
@@ -91,11 +107,7 @@ l.c <- function(L,d1,d2) {
 tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL) {
   if(!is.null(snps) || !is.null(samples))
     X <- X[samples,snps]
-  r2 <- ld(X,
-            depth=ncol(X)-1,
-            symmetric=TRUE,
-            stat="R.squared")
-   diag(r2) <- 1
+  r2 <- myr2(X)
    D <- as.dist(1-r2)
    hc <- hclust(D, method="complete")
    clusters <- cutree(hc, h=1-tag.threshold)
@@ -153,142 +165,7 @@ make.data <- function(X,Y,tags,family="binomial") {
              family=family))
 }
 
-make.models.slow <- function(snps,n.use,groups=NULL) {
-  if(is.null(groups) || n.use==1) { # simple
-    combs <- combn(length(snps),n.use)
-    models <- matrix(0,ncol(combs),length(snps))
-    colnames(models) <- snps
-    ind <- cbind(as.vector(col(combs)),as.vector(combs))
-    models[ind] <- 1
-  } else {
-    n.groups <- sapply(groups,length)
-    if(length(snps) != sum(n.groups) || !all(snps %in% unlist(groups)))
-      stop("all snps should be in a single group")
-    models.list <- lapply(n.groups, function(n) {
-      diag(nrow=n,ncol=n)
-    })
-    null.list <- lapply(n.groups, function(n) {
-      matrix(0,nrow=1,ncol=n)
-    })
-    ## pick n.use from models.list, and remainder from null.list, combine
-    combs <- combn(length(n.groups),n.use)
-    models <- vector("list",ncol(combs))
-    for(j in 1:ncol(combs)) {
-      models[[j]] <- bind.2(models.list[[combs[1,j]]], models.list[[combs[2,j]]])
-      if(nrow(combs)>2) {
-        for(i in 3:nrow(combs))
-          models[[j]] <- bind.2(models[[j]], models.list[[ combs[i,j] ]])
-      }
-      models[[j]] <- cbind(models[[j]], matrix(0,nrow(models[[j]]), sum(n.groups[ -combs[,j] ])))
-      colnames(models[[j]]) <- c(unlist(groups[ combs[,j] ]), unlist(groups[ -combs[,j] ]))
-      models[[j]] <- models[[j]][,snps]
-    }
-    models <- do.call("rbind",models)
-  }
-  return(models)
-}
 
-bind.2 <- function(x,y=NULL) {
-  if(!is.null(y))
-    x <- list(x,y)
-  nr <- lapply(x,nrow)
-  ind <- expand.grid(lapply(nr, function(n) 1:n))
-  
-  nc <- sapply(x,ncol)
-  beg <- c(1,cumsum(nc)[-length(nc)]+1)
-  end <- cumsum(nc)
-  if(all(sapply(x,"class")=="matrix")) {
-    mat <- matrix(0,nrow=nrow(ind),ncol=sum(nc))
-  } else {
-    mat <- Matrix(0,nrow=nrow(ind),ncol=sum(nc),sparse=TRUE)
-  }
-  for(i in 1:length(ind))
-    mat[, beg[[i]]:end[[i]] ] <- x[[i]][ ind[[i]], ]
-##  return(Matrix(mat,sparse=TRUE))
-  return(mat)
-##  system.time( do.call("cBind",mapply(function(mat,i) { mat[i,,drop=FALSE] }, x, as.list(ind), SIMPLIFY=FALSE)))
-}
-
-
-make.models.single <- function(snps,n.use,quiet=FALSE) {
-  combs <- combn(length(snps),n.use)
-  if(!quiet)
-    cat("groups not needed, creating a model matrix of",ncol(combs),"x",length(snps),".\n")
-  models <- Matrix(0,ncol(combs),length(snps),sparse=TRUE)
-  colnames(models) <- snps
-  ind <- cbind(as.vector(col(combs)),as.vector(combs))
-  models[ind] <- 1
-  return(models)
-}
-
-make.models.multi <- function(snps,n.use,groups,quiet=FALSE) {
-  n.groups <- sapply(groups,length)
-  combs <- combn(length(n.groups),n.use)
-  models.list <- lapply(n.groups, function(n) {
-    diag(nrow=n,ncol=n)
-  })
-  models <- vector("list",ncol(combs))
-  for(j in 1:ncol(combs)) {
-    ##        cat(".")
-    models[[j]] <- bind.2(models.list[ combs[,j] ])
-    models[[j]] <- cbind(models[[j]],
-                         matrix(0,nrow(models[[j]]), sum(n.groups[ -combs[,j] ])))
-    colnames(models[[j]]) <- c(unlist(groups[ combs[,j] ]), unlist(groups[ -combs[,j] ]))
-    models[[j]] <- models[[j]][,snps]
-  }
-  nr <- sapply(models,nrow)
-  models.final <- Matrix(0,sum(nr),ncol(models[[1]]))
-  colnames(models.final) <- snps
-  end <- cumsum(nr)
-  beg <- c(1,end[-length(end)]+1)
-  for(j in 1:length(models)) {
-    models.final[beg[[j]]:end[[j]],] <- models[[j]]
-  }
-  ##      models <- do.call("rBind",models)
-  return(models.final)
-}
-
-make.models <- function(snps,n.use,groups=list(),quiet=FALSE) {
-  if(!length(groups) || n.use==1) # simple
-    return(make.models.single(snps,n.use,quiet))
-  
-  n.groups <- sapply(groups,length)
-  if(length(snps) != sum(n.groups) || !all(snps %in% unlist(groups)))
-    stop("all snps should be in a single group")
-  
-  if(all(n.groups==1)) ## all singletons, ignore grouping
-    return(make.models.single(snps,n.use,quiet=TRUE))
-  
-  if(all(n.groups>1)) ## all multi, generate models
-    return(make.models.multi(snps,n.use,groups,quiet=TRUE))
-  
-  ## mixed single and multi
-  ## deal with single snp groups first - these are easy
-  which.single <- which(n.groups==1)
-  if(!quiet)
-    cat("mixture of",length(groups)-length(which.single),"groups and",length(which.single),"singles.\n")
-  if(!quiet)
-    cat("singles first...\n")
-  single.list <- c(list(Matrix(0,nrow=1,ncol=length(which.single),sparse=TRUE)),
-                   mclapply(as.list(1:n.use), function(i) {
-                     make.models(unlist(groups[which.single]), n.use=i,quiet=TRUE) }))
-  ## now each of these needs to bind.2 with all n:0 possibilities from remainder
-  if(!quiet)
-    cat("multis next...\n")
-  multi.list <- c(lapply(as.list(n.use:1), function(i) {
-    make.models(unlist(groups[-which.single]), n.use=i, groups=groups[-which.single], quiet=TRUE)
-  }),
-                  list(Matrix(0,nrow=1,ncol=sum(n.groups) - length(which.single),sparse=TRUE)))
-  if(!quiet)
-    cat("bind.2\n")
-  models.list <- mcmapply(bind.2, single.list, multi.list)
-  if(!quiet)
-    cat("finally rBind\n")
-  models <- do.call("rBind",models.list)
-  colnames(models) <- c(unlist(groups[which.single]),unlist(groups[-which.single]))
-  models <- models[,snps]
-  return(models)
-}
 
 my.glib <- function(data, models) {
   if(data@family=="binomial") {
@@ -301,13 +178,13 @@ my.glib <- function(data, models) {
 
   if(is.null(getOption("mc.cores"))) {
     cat("Evaluating",nrow(models),"models\n")
-    bf <-   glib(data@X, data@Y, error=error, link=link, models=models)$bf$twologBF10
+    bf <-   glib(data@X, data@Y, error=error, link=link, models=models, glimest=FALSE, post.bymodel=FALSE)$bf$twologBF10
   } else {
     cat("Evaluating",nrow(models),"models","over",getOption("mc.cores",1),"cores.\n")
     njobs <- min(max(options()$mc.cores, 1), nrow(models)) # don't need more than 1 core per model
     index <- rep(1:njobs, length=nrow(models))
     inner.function <- function(j) {
-      glib(data@X, data@Y, error=error, link=link, models=models[j,,drop=FALSE])$bf$twologB10
+      glib(data@X, data@Y, error=error, link=link, models=models[j,,drop=FALSE], glimest=FALSE, post.bymodel=FALSE)$bf$twologB10
     }
     index.split <- split(1:nrow(models), index)
     inner.results <- mclapply(index.split, inner.function)
@@ -318,14 +195,32 @@ my.glib <- function(data, models) {
   return(list(models=models,bf=bf))
 }
 
-bma.nsnps <- function(data,nsnps=1, groups=list()) {
+bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
   if(nsnps<1 || nsnps>ncol(data@X))
     stop("nsnps must lie between 1 and ncol(data@X) inclusive")
-  models <- make.models(colnames(data@X), nsnps, groups=groups)
+
+  snps <- snps.use <- colnames(data@X)
+  snps.exclude <- character(0)
+  if(!is.null(models.drop)) {
+    if(is.list(models.drop))
+      models.drop <- stackModels(models.drop)
+    snps.exclude <- snps(models.drop)
+    snps.use <- setdiff(snps.use, snps.exclude)
+    groups <- lapply(groups, setdiff, y=snps.exclude)
+  }
+  models <- make.models(snps.use, nsnps, groups=groups)
+  nmodels <- nrow(models)
+  if(!is.null(models.drop))
+    models <- mdrop(models, models(models.drop))
+  if(length(snps.exclude))
+    models <- cbind2(models,
+                    Matrix(0,nmodels,length(snps.exclude),
+                           dimnames=list(NULL,snps.exclude),sparse=TRUE))[,snps]
   x <- my.glib(data, models)
   return(new("snpBMA",
              nsnps=nsnps,
-             snps=tags,
+             nmodels=nmodels,
+             snps=data@tags,
              groups=groups,
              bf=x$bf,
              models=x$models))             
@@ -352,6 +247,20 @@ drop.snps <- function(data, bma.result, bf.thr) {
   snps.drop <- unique(bma.result@snps)[bma.result@bf$twologB10[,2] < bf.thr]
   make.data(data@X[,setdiff(colnames(data@X),snps.drop)], data@Y,
             tags=setdiff(tags,snps.drop),family=data@family)
+}
+##' Binomial prior for number of SNPs in a model
+##'
+##' @title DELETE ME!
+##' @param x number of SNPs in a model (defaults to 1:length(groups), ie returns a vector)
+##' @param groups groups of SNPs, from which at most one SNP should be selected
+##' @param expected expected number of SNPs in a model
+##' @return prior probability/ies as a numeric
+##' @export
+##' @author Chris Wallace
+prior.nsnps <- function(x=1:length(groups), groups, expected) {
+  n <- length(groups)
+  p <- expected/n
+  dbinom(x, size=n, prob=p)  
 }
 
 bma.combine <- function(L) {
@@ -419,15 +328,12 @@ index.groups <- function(X, index.snps, r2.threshold=0.9, snps=NULL, samples=NUL
 
   return(group.snps)
 }
+
 ##' create groups of SNPs with LD > r2.threshold with index.snps
 r2.groups <- function(X,r2.threshold=0.9, snps=NULL, samples=NULL, do.plot=FALSE) {
   if(!is.null(snps) || !is.null(samples))
     X <- X[samples,snps]
-  r2 <- ld(X,
-           depth=ncol(X)-1,
-           symmetric=TRUE,
-           stat="R.squared")
-  diag(r2) <- 1
+  r2 <- myr2(X)
   D <- as.dist(1-r2)
   hc <- hclust(D, method="complete")
   clusters <- cutree(hc, h=1-r2.threshold)

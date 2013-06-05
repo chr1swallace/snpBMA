@@ -45,33 +45,3 @@ test_that("l.rbind works", {
 
 ################################################################################
 
-## models
-
-snps<-letters[1:12]
-groups <- list(letters[1:3], letters[4:5], letters[6:8],letters[9], letters[10], letters[11], letters[12])
-n.use <- 2
-
-single.groups <- make.models.single(snps[9:12],n.use,quiet=TRUE)
-multi.groups <- make.models.multi(snps[1:8],n.use,groups[1:3],quiet=TRUE)
-both.groups <- make.models(snps,n.use,groups,quiet=TRUE)
-
-context("make.models run\n")
-
-test_that("make.groups produces dgCMatrix-es", {
-  expect_that(single.groups, is_a("dgCMatrix")) 
-  expect_that(multi.groups, is_a("dgCMatrix")) 
-  expect_that(both.groups, is_a("dgCMatrix"))
-})
-
-test_that("make.groups nrows are correct", {
-  expect_that(nrow(single.groups), equals(6))
-  expect_that(nrow(multi.groups), equals(21))
-  expect_that(nrow(both.groups), equals(59))
-})
-
-test_that("make.groups have correct number of 1s per row", {
-  expect_that(all(apply(single.groups==1,1,sum)==n.use), is_true())
-  expect_that(all(apply(multi.groups==1,1,sum)==n.use), is_true())
-  expect_that(all(apply(both.groups==1,1,sum)==n.use), is_true())
-})
-

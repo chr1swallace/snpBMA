@@ -1,0 +1,219 @@
+#+TITLE:     snpBMA: a package for details genetic association analysis of densely typed genetic regions
+#+AUTHOR:    Chris Wallace
+#+EMAIL:     chris.wallace@cimr.cam.ac.uk
+#+DATE:      2013-05-22 Wed
+#+DESCRIPTION:
+#+KEYWORDS:
+#+LANGUAGE:  en
+#+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:(not LOGBOOK) todo:t pri:nil tags:t
+
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:   
+#+LINK_HOME: 
+#+XSLT:
+
+#+latex_header: \usepackage{fullpage}
+#+latex: %\VignetteIndexEntry{snpBMA analysis}
+
+#+begin_html
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{snpBMA analysis}
+-->
+#+end_html
+
+* Bayesian Model Averaging and the BMA package
+
+* Priors
+
+* Simulate some data
+
+We start with using some sample data from the snpStats package
+including 20 SNPs, and simulating a quantitative trait that depends
+on 3 causal SNPs.
+
+#+begin_src R :ravel
+library(snpStats)
+data(for.exercise, package="snpStats")
+X <- snps.10[,11:30]
+n <- nrow(X)
+set.seed(12346)
+Y <- rnorm(n,mean=as.numeric(X[,1]))*sqrt(0.1) +
+  rnorm(n,mean=as.numeric(X[,5]))*sqrt(0.1) +
+  rnorm(n,mean=as.numeric(X[,11]))*sqrt(0.1) +
+  rnorm(n)*sqrt(0.7)
+(causal <- colnames(X)[c(1,5,11)])
+#+end_src
+
+Looking at the LD, we see this is a region in which D' (above the
+diagonal) is very high, whilst $r^2$ can be high between some SNPs,
+and with moderately strong $r^2 \simeq 0.7$ between two of our causal
+SNPs:
+#+begin_src R :ravel fig=TRUE
+ld <- show.ld(X=X)
+#+end_src
+
+Bayesian model averaging approaches can be slow when the number of
+SNPs is very large, as the number of models grows rapidly.  We tackle
+this in three ways.  
+
+** Using SNP tagging to quickly cover the model space
+First, we aim to cover the model space more rapidly by focusing on a
+tagging subset of SNPs, then expand to include the tagged SNPs only in
+the neighbourhood of supported models.  Tags can be selected using the
+=tag= function, where =tag.threshold= sets the $r^2$ threshold used to
+group SNPs.  This function makes use of =hclust= to do the grouping.
+We can see that not all of our causal SNPs will be analysed directly,
+but some through tags.
+
+#+begin_src R 
+tags <- tag(X, tag.threshold=0.8)
+tags[causal]
+#+end_src
+
+Now we can consider sets of models, fixing the number of SNPs each
+time.  
+
+#+begin_src R
+## make a snpBMAdata set
+data <- make.data(X, Y,tags=tags,family="gaussian")
+
+## Calculate Bayes Factors for all one SNP models
+bma.1 <- bma.nsnps(data, nsnps=1)
+
+## Summarise the SNPs with greatest support
+head(ss1 <- snp.summary(bma.1))
+#+end_src
+
+** Excluding SNPs with low single SNP support
+We can consider an additional way to prune the model space: exclude
+SNPs with very limited single SNP support.  In this case, we drop
+SNPs that have a 2 log Bayes Factor (versus the null model with no
+SNPs) < 2.2, a threshold previous described as "weak support".
+
+#+begin_src R
+## define the list of SNPs to drop
+max.bf <- apply(ss1,1,max)
+snps.drop <- rownames(ss1)[ max.bf < 2.2 ]
+snps.drop
+
+## generate a new set of tags and snpBMAdata object
+tags <- tags[!(tags %in% snps.drop)]
+data2 <- make.data(X, Y,tags=tags,family="gaussian")
+#+end_src
+
+Then assess all two SNP models from this further pruned list.  We
+will also analyse the complete set of data, so the two approaches can
+be compared.
+#+begin_src R
+bma.2 <- bma.nsnps(data, nsnps=2)
+bma.2d <- bma.nsnps(data2, nsnps=2)
+#+end_src
+
+** Excluding unlikely models
+Models with two or more SNPs can be thought of as children of many
+parent models.  If a two SNP model contains SNPs A and B, then its
+parents are the single SNP models containing either A or B.  Each
+parent model has many potential children.  Thus the model space can
+be partitioned into generations, with each generation containing a
+fixed number of SNPs.  Any two or more SNP model can be reached via
+multiple paths in this model space.
+
+\cite{madigan94} proposed that where child models had a parent with
+greater support than the child, no further "grandchild" models would
+be worth considering.  This is quite a broad pruning.  We choose to
+implement a variation where the future generation models are excluded
+if a child model has a parent model with $f$-fold greater support,
+and have set the default at $f=10$.
+
+Here, we compare the child and parent models in =bma.1= and =bma.2d=
+to determine the set of models we will not explore.
+
+#+begin_src R
+## assume a binomial prior for the number of SNPs with expectation of 3 causal SNPs
+## ie exactly the scenario simulated!
+priors <- prior.binomial(1:10, n=ncol(X), expected=3)
+drop.1.2 <- mcomp(parents=bma.1, children=bma.2d,
+                     prior.parents=priors[1],
+                     prior.children=priors[2])
+drop.1.2
+#+end_src R
+
+Now, we fit 3 SNP models, using the different pruning options:
+
+#+begin_src R
+## tagging only
+bma.3 <- bma.nsnps(data, nsnps=3)
+
+## tagging + excluding poorly supported single SNPs
+bma.3d <- bma.nsnps(data2, nsnps=3)
+
+## as above, + excluding future generations 
+bma.3dd <- bma.nsnps(data2, nsnps=3, models.drop=drop.1.2)
+
+#+end_src
+
+And do the same for 4 SNP models
+
+#+begin_src R
+## define
+drop.2.3 <- mcomp(parents=bma.2d, children=bma.3dd,
+                     prior.parents=priors[2],
+                     prior.children=priors[3])
+drop.2.3
+
+## tagging only
+bma.4 <- bma.nsnps(data, nsnps=4)
+
+## tagging + excluding poorly supported single SNPs
+bma.4d <- bma.nsnps(data2, nsnps=4)
+
+## as above, + excluding future generations 
+## NB, this fails because no models have enough support to be tested
+bma.4dd <- bma.nsnps(data2, nsnps=4, 
+                     models.drop=list(drop.1.2, drop.2.3))
+
+## Instead, for the purpose of this example, we will exclude only 
+## models dropped in the first set
+bma.4dd <- bma.nsnps(data2, nsnps=4, 
+                      models.drop=drop.1.2)
+#+end_src
+
+Finally, to visulize the path that we have taken through the
+generations of models, we can use the ==graphBMA== function:
+
+#+begin_src R
+ g<-graphBMA(list(bma.1,bma.2,bma.3,bma.4), priors)
+ gd<-graphBMA(list(bma.1,bma.2d,bma.3d,bma.4d), priors)
+ gdd<-graphBMA(list(bma.1,bma.2d,bma.3dd,bma.4dd), priors)
+
+graphView(g) + ggtitle("Tagging only")
+graphView(gd) + ggtitle("Tagging plus single level exclusion")
+graphView(gdd) + ggtitle("All exclusions")
+#+end_src
+
+This shows there is essentially a single model with 3 SNPs with strong
+support, and one with two SNPs with less support.  What are those top
+models?
+
+#+begin_src R
+top.models(bma.2)
+top.models(bma.3)
+#+end_src 
+
+** Adding back the tags
+
+* Automating the analysis
+
+There are a lot of steps above.  It's good to understand the detail
+of how we approach the problem, but once you understand it, it can be
+tedious to run each step.  We have a function, =bma.auto()=, that
+should automate much of this.
+
+#+begin_src LATEX
+\bibliographystyle{plain}
+\bibliography{ProbePosition}
+#+end_src
+

@@ -118,7 +118,10 @@ tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL) {
    return(tags)
 }
 
-
+group.tags <- function(tags, keep) {
+  groups <- tags[ names(tags) %in% tags.99 ]
+  groups <- split(names(groups), groups)
+}
 ##' Given a list of BMA results from glib, combine into a single object
 ##'
 ##' With the multicore package, it can be useful to farm out BMA jobs via mclapply
@@ -176,22 +179,22 @@ my.glib <- function(data, models) {
     link <- "identity"
   }
 
-  if(is.null(getOption("mc.cores"))) {
+  ## if(is.null(getOption("mc.cores"))) {
     cat("Evaluating",nrow(models),"models\n")
-    bf <-   glib(data@X, data@Y, error=error, link=link, models=models, glimest=FALSE, post.bymodel=FALSE)$bf$twologBF10
-  } else {
-    cat("Evaluating",nrow(models),"models","over",getOption("mc.cores",1),"cores.\n")
-    njobs <- min(max(options()$mc.cores, 1), nrow(models)) # don't need more than 1 core per model
-    index <- rep(1:njobs, length=nrow(models))
-    inner.function <- function(j) {
-      glib(data@X, data@Y, error=error, link=link, models=models[j,,drop=FALSE], glimest=FALSE, post.bymodel=FALSE)$bf$twologB10
-    }
-    index.split <- split(1:nrow(models), index)
-    inner.results <- mclapply(index.split, inner.function)
-    ## collate results
-    bf <- do.call("rbind",inner.results)
-    models <- models[ unlist(index.split) , ]
-  }  
+    bf <-   glib(data@X, data@Y, error=error, link=link, models=models, glimest=FALSE, post.bymodel=FALSE)$bf$twologB10
+  ## } else {
+  ##   cat("Evaluating",nrow(models),"models","over",getOption("mc.cores",1),"cores.\n")
+  ##   njobs <- min(max(options()$mc.cores, 1), nrow(models)) # don't need more than 1 core per model
+  ##   index <- rep(1:njobs, length=nrow(models))
+  ##   inner.function <- function(j) {
+  ##     glib(data@X, data@Y, error=error, link=link, models=models[j,,drop=FALSE], glimest=FALSE, post.bymodel=FALSE)$bf$twologB10
+  ##   }
+  ##   index.split <- split(1:nrow(models), index)
+  ##   inner.results <- mclapply(index.split, inner.function)
+  ##   ## collate results
+  ##   bf <- do.call("rbind",inner.results)
+  ##   models <- models[ unlist(index.split) , ]
+  ## }  
   return(list(models=models,bf=bf))
 }
 
@@ -216,15 +219,59 @@ bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
     models <- cbind2(models,
                     Matrix(0,nmodels,length(snps.exclude),
                            dimnames=list(NULL,snps.exclude),sparse=TRUE))[,snps]
+
+  bma.run(data, models, nsnps, groups)
+
+  ## x <- my.glib(data, models)
+  ## return(new("snpBMA",
+  ##            nsnps=nsnps,
+  ##            nmodels=nmodels,
+  ##            snps=data@tags,
+  ##            groups=groups,
+  ##            bf=x$bf,
+  ##            models=x$models))             
+}
+
+bma.grow <- function(data, bma) {
+
+  nsnps <- bma@nsnps + 1
+  if(nsnps<1 || nsnps>ncol(data@X))
+    stop("bma already contains maximum SNPs")
+  models <- mgrow(bma)
+
+  bma.run(data, models, nsnps, bma@groups)
+
+}
+
+bma.expand <- function(data, bma, groups) {
+
+  nsnps <- bma@nsnps
+  models <- mexpand(bma, groups)
+
+  bma.run(data[,colnames(models)], models, nsnps, bma@groups)
+
+}
+
+## FIX!!
+## > expand.snps<-c("rs2379078","rs4880781")
+## > bma.e1 <- bma.expand(data.99, bma.1, groups=groups[expand.snps])
+## groups not needed, creating a model matrix of 2 x 2 .
+## Error in bind.2(models[i, -j], make.models.single(groups[[index.snp]],  : 
+##   (list) object cannot be coerced to type 'double'
+
+bma.run <- function(data, models, nsnps, groups) {
+
   x <- my.glib(data, models)
+  
   return(new("snpBMA",
              nsnps=nsnps,
-             nmodels=nmodels,
+             nmodels=max.models(unique(data@tags), nsnps, groups),
              snps=data@tags,
              groups=groups,
              bf=x$bf,
-             models=x$models))             
+             models=as(x$models,"dgCMatrix")))
 }
+
 
 ## extend.matrix <- function(m, snps, by="row") {
 ##   dim.index <- if(by=="row") { 1 } else { 2 }
@@ -309,10 +356,19 @@ bma.combine <- function(L) {
 index.groups <- function(X, index.snps, r2.threshold=0.9, snps=NULL, samples=NULL) {
   if(r2.threshold<0 || r2.threshold>1)
     stop("r2.threshold must lie within (0,1)")
-  if(!is.null(snps) || !is.null(samples))
-    X <- X[samples,snps]
-  ld.groups <- as.data.frame(t(ld(X[samples,snps],
-                                  X[samples,],
+  index.snps <- unique(index.snps)
+  if(!is.null(snps))
+    snps <- unique(snps)
+  if(!is.null(snps) & !is.null(samples)) {
+    X <- X[ samples, snps ]
+  } else {
+    if(!is.null(snps))
+      X <- X[,snps]
+    if(!is.null(samples))
+      X <- X[samples,]
+  }
+  ld.groups <- as.data.frame(t(ld(X[,index.snps],
+                                  X,
                                   stat="R.squared")))
   group.snps <- lapply(ld.groups, function(x)
                        rownames(ld.groups)[which(x>=r2.threshold)])

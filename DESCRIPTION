@@ -21,5 +21,8 @@ Collate:
     'snpBMA-package.r'
     'summary-functions.R'
     'priors.R'
+    'AllGenerics.R'
+    'AllMethods.R'
+    'graph-functions.R'
 Imports:
     Matrix

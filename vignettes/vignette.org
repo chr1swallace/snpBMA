@@ -55,11 +55,15 @@ SNPs:
 ld <- show.ld(X=X)
 #+end_src
 
-Bayesian model averaging approaches can be slow when the number of
-SNPs is very large, as the number of models grows rapidly.  We tackle
-this in three ways.  
+* Using BMA to identify the causal variants
 
-** Using SNP tagging to quickly cover the model space
+Bayesian model averaging approaches can be slow when the number of
+SNPs is very large, as the number of models grows rapidly.  The
+simulated data are deliberately small here, so that you can compare
+the effect of the different ways we tackle this, which fall into three
+categories: 
+
+* A full BMA analysis using SNP tagging to quickly cover the model space
 First, we aim to cover the model space more rapidly by focusing on a
 tagging subset of SNPs, then expand to include the tagged SNPs only in
 the neighbourhood of supported models.  Tags can be selected using the
@@ -87,6 +91,103 @@ bma.1 <- bma.nsnps(data, nsnps=1)
 head(ss1 <- snp.summary(bma.1))
 #+end_src
 
+Although the =bma.nsnps()= function works for any
+number of SNPs, it can be simpler to think of growing your BMA models
+from a parent generation (here, all possible one SNP models) to a
+child generation (here, all possible two SNP models).  
+
+#+BEGIN_SRC R
+bma.2 <- bma.grow(data=data, bma=bma.1)
+bma.3 <- bma.grow(data=data, bma=bma.2)
+bma.4 <- bma.grow(data=data, bma=bma.3)
+#+END_SRC
+
+** Visualizing the results
+
+It can be nice to visualize the support across these generations of
+models graphically.  So far, we have assumed each model within a
+generation has an equal prior, which seems reasonable in the absence
+of specific information about the likely impact of each SNP.
+However, it doesn't seem reasonable that all models, regardless of
+the number of SNPs, should have equal priors.  Models with smaller
+numbers of SNPs should be favoured.  We can implement this by
+specifying a prior for the number of SNPs in a model.  =snpBMA= has
+two functions to do this, or you can just create your own numeric vector.
+
+#+begin_src R
+## assume a binomial prior for the number of SNPs with expectation of 3 causal SNPs
+## ie exactly the scenario simulated!
+priors <- prior.binomial(1:10, n=ncol(X), expected=3)
+#+end_src
+
+See the help for =prior.betabinomial= to understand the other
+function available, and the difference to a binomial prior.
+
+#+BEGIN_SRC R
+## create a graph of BMA results so far
+ g<-graphBMA(bma.list=list(bma.1,bma.2,bma.3,bma.4), priors)
+
+## g is an igraph, so you can do all the usual stuff with it:
+g
+
+## visualize
+graphView(g)
+#+END_SRC
+
+** Add back in the tagged SNPs
+We used tagging to span the space quickly.  Once we have found our
+favoured models, it makes sense to see how the tagged SNPs in LD with
+SNPs in those models change things.  There are a couple of subtleties
+here to be aware of however:
+
+1. the X matrix must be of full rank, which means a small amount of
+   tagging may always be necessary, say at r^2=0.99
+2. when two SNPs are in strong LD, fitting both in the model can make
+   the model uninterpretable.  With snpBMA you can group SNPs so that
+   at most one of each group is included in any single model.  The
+   default grouping threshold is r^2=0.8, but the optimal value will
+   depend on your data: with many subjects a higher threshold may be
+   appropriate, as the SNPs become statistically distinguishable.
+
+#+BEGIN_SRC R
+## First, tag at r2=0.99
+tags.99 <- tag(X, 0.99)
+
+## group remaining snps at r2=0.8, using the first set of tags above as indices
+groups <- group.tags(tags, keep=tags.99)
+length(groups)
+data.99 <- make.data(X, Y, tags=tags.99, family="guassian")
+#+END_SRC
+
+Now we can refit all models including these tagged SNPs in their
+groups:
+#+BEGIN_SRC R
+bma.g1 <- bma.nsnps(data.99, nsnps=1, groups=groups)
+bma.g2 <- bma.grow(data.99, bma.g1)
+bma.g3 <- bma.grow(data.99, bma.g2)
+bma.g4 <- bma.grow(data.99, bma.g3)
+#+END_SRC
+
+You can see the model space grows much more quickly.  But the end
+result is not dissimilar:
+
+#+BEGIN_SRC R
+## create a graph of BMA results so far
+ g.groups<-graphBMA(bma.list=list(bma.g1,bma.g2,bma.g3,bma.g4), priors)
+
+## visualize
+graphView(g.groups)
+#+END_SRC
+
+Instead, we can just add in the models near the favoured models from
+the tagged results.
+#+BEGIN_SRC R
+ss <- lapply(list(bma.1,bma.2,bma.3,bma.4), snp.summary)
+expand.snps<-c("rs2379078","rs4880781")
+bma.e1 <- bma.expand(data.99, bma.1, groups=groups[expand.snps])
+#+END_SRC
+
+
 ** Excluding SNPs with low single SNP support
 We can consider an additional way to prune the model space: exclude
 SNPs with very limited single SNP support.  In this case, we drop
@@ -98,16 +199,19 @@ SNPs) < 2.2, a threshold previous described as "weak support".
 max.bf <- apply(ss1,1,max)
 snps.drop <- rownames(ss1)[ max.bf < 2.2 ]
 snps.drop
+#+end_src
+
+Then we can assess all two SNP models excluding those in snps.drop.  We
+will also analyse the complete set of data, so the two approaches can
+be compared.  To do this, we
+need to prune the snps included in the =bma.1= object and the =data= object.
+
+#+begin_src R
 
 ## generate a new set of tags and snpBMAdata object
 tags <- tags[!(tags %in% snps.drop)]
 data2 <- make.data(X, Y,tags=tags,family="gaussian")
-#+end_src
 
-Then assess all two SNP models from this further pruned list.  We
-will also analyse the complete set of data, so the two approaches can
-be compared.
-#+begin_src R
 bma.2 <- bma.nsnps(data, nsnps=2)
 bma.2d <- bma.nsnps(data2, nsnps=2)
 #+end_src
@@ -135,13 +239,40 @@ to determine the set of models we will not explore.
 ## assume a binomial prior for the number of SNPs with expectation of 3 causal SNPs
 ## ie exactly the scenario simulated!
 priors <- prior.binomial(1:10, n=ncol(X), expected=3)
-drop.1.2 <- mcomp(parents=bma.1, children=bma.2d,
-                     prior.parents=priors[1],
-                     prior.children=priors[2])
+drop.1.2 <- models.diff(parents=bma.1, children=bma.2d)
 drop.1.2
 #+end_src R
 
-Now, we fit 3 SNP models, using the different pruning options:
+One way to implement this would be to determine all the possible three
+SNP models, then delete those that are children of the dropped models.
+But a faster way is to drop these models from the =bma2= object, then
+use =bma.grow()= to automatically fit all the child models of those
+which remain.
+
+#+NAME: BMA3
+#+BEGIN_SRC R
+priors <- prior.binomial(1:10, n=ncol(X), expected=3)
+
+## prune the bma.2d object
+bma.2dd <- models.prune(parents=bma.1, children=bma.2d, 
+                        prior.parents=priors[1],
+                        prior.children=priors[2])
+
+## grow the BMA to a third generation
+bma.3dd <- bma.grow(data2, bma.2dd)
+
+## for comparison, without pruning, we could use tagging only...
+bma.3 <- bma.nsnps(data, nsnps=3)
+
+## ... or tagging + excluding poorly supported single SNPs
+bma.3d <- bma.nsnps(data2, nsnps=3)
+
+## this should be the same as growing from the bma.2d object
+bma.3d2 <- bma.grow(data2, bma.2d)
+
+bma.3d
+bma.3d2
+#+END_SRC
 
 #+begin_src R
 ## tagging only

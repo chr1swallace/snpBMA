@@ -4,5 +4,6 @@
 #' @docType package
 #' @import Matrix
 #' @import VGAM
+#' @import igraph
 
 NULL

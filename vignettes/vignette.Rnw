@@ -1,0 +1,58 @@
+% Created 2013-06-05 Wed 12:44
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{soul}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{amstext}
+\usepackage{hyperref}
+\tolerance=1000
+\usepackage{fullpage}
+\author{Chris Wallace}
+\date{2013-05-22 Wed}
+\title{snpBMA: a package for details genetic association analysis of densely typed genetic regions}
+\hypersetup{
+  pdfkeywords={},
+  pdfsubject={},
+  pdfcreator={Emacs 24.2.1 (Org mode 8.0.3)}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+%\VignetteIndexEntry{snpBMA analysis}
+
+\section{Simulate some data}
+\label{sec-1}
+
+We start with using some sample data from the snpStats package
+including 20 SNPs, and simulating a quantitative trait that depends
+on 3 causal SNPs.
+
+<<>>=
+library(snpStats)
+data(for.exercise, package="snpStats")
+X <- snps.10[,11:30]
+n <- nrow(X)
+set.seed(12346)
+Y <- rnorm(n,mean=as.numeric(X[,1]))*sqrt(0.1) +
+  rnorm(n,mean=as.numeric(X[,5]))*sqrt(0.1) +
+  rnorm(n,mean=as.numeric(X[,11]))*sqrt(0.1) +
+  rnorm(n)*sqrt(0.7)
+@ %def
+
+Looking at the ld
+<<fig=TRUE>>=
+ld <- show.ld(X=X)
+@ %def
+% Emacs 24.2.1 (Org mode 8.0.3)
+\end{document}

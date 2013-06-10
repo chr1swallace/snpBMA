@@ -47,6 +47,16 @@ Y <- rnorm(n,mean=as.numeric(X[,1]))*sqrt(0.1) +
 (causal <- colnames(X)[c(1,5,11)])
 #+end_src
 
+=X= contains some missing genotypes, but no SNPs with such a low call
+rate we would worry in a large study.  Still, the rest of the analysis
+is easier to interpret for the purposes of a vignette if we fill in
+the missing values.
+
+#+BEGIN_SRC R
+summary(X)
+X <- impute.missing(X)
+#+END_SRC
+
 Looking at the LD, we see this is a region in which D' (above the
 diagonal) is very high, whilst $r^2$ can be high between some SNPs,
 and with moderately strong $r^2 \simeq 0.7$ between two of our causal
@@ -123,9 +133,10 @@ priors <- prior.binomial(1:10, n=ncol(X), expected=3)
 See the help for =prior.betabinomial= to understand the other
 function available, and the difference to a binomial prior.
 
-#+BEGIN_SRC R
+#+BEGIN_SRC R :ravel fig=TRUE
 ## create a graph of BMA results so far
- g<-graphBMA(bma.list=list(bma.1,bma.2,bma.3,bma.4), priors)
+results <- stack(bma.1,bma.2,bma.3,bma.4)
+ g<-graphBMA(bma.list=results, priors)
 
 ## g is an igraph, so you can do all the usual stuff with it:
 g
@@ -133,6 +144,21 @@ g
 ## visualize
 graphView(g)
 #+END_SRC
+
+This shows the models according to posterior probabilities *across the
+model space visited*.  One model stands out, with SNPs 0, 1 and 5.
+These are 0-based numeric indices of the SNPs included, and we can
+identify these SNPs using:
+
+#+BEGIN_SRC R
+snps0(data)[ as.character(c(0,1,5)) ]
+#+END_SRC
+
+but it can be easier just write the top models to screen
+#+BEGIN_SRC R
+top.models(results)
+#+END_SRC
+
 
 ** Add back in the tagged SNPs
 We used tagging to span the space quickly.  Once we have found our
@@ -159,36 +185,39 @@ length(groups)
 data.99 <- make.data(X, Y, tags=tags.99, family="guassian")
 #+END_SRC
 
+Now we decide which tag SNP groups we would like to "expand".  We
+choose any SNPs in the top three models, after which the posterior
+probabilities appear to tail off:
+
+#+BEGIN_SRC R
+top.models(results, priors)
+expand.snps <- top.snps(results, priors, nmodels=3)
+#+END_SRC
+
 Now we can refit all models including these tagged SNPs in their
 groups:
 #+BEGIN_SRC R
-bma.g1 <- bma.nsnps(data.99, nsnps=1, groups=groups)
-bma.g2 <- bma.grow(data.99, bma.g1)
-bma.g3 <- bma.grow(data.99, bma.g2)
-bma.g4 <- bma.grow(data.99, bma.g3)
+bma.e1 <- bma.expand(data.99, bma.1, groups=groups[expand.snps])
+bma.e2 <- bma.expand(data.99, bma.2, groups=groups[expand.snps])
+bma.e3 <- bma.expand(data.99, bma.3, groups=groups[expand.snps])
+bma.e4 <- bma.expand(data.99, bma.4, groups=groups[expand.snps])
 #+END_SRC
 
 You can see the model space grows much more quickly.  But the end
 result is not dissimilar:
 
-#+BEGIN_SRC R
+#+BEGIN_SRC R :ravel fig=TRUE
 ## create a graph of BMA results so far
- g.groups<-graphBMA(bma.list=list(bma.g1,bma.g2,bma.g3,bma.g4), priors)
+expand.results <- stack(bma.e1,bma.e2,bma.e3,bma.e4)
+ g.expand<-graphBMA(expand.results, priors)
 
 ## visualize
-graphView(g.groups)
+graphView(g.expand)
+
+top.models(expand.results, priors)
 #+END_SRC
 
-Instead, we can just add in the models near the favoured models from
-the tagged results.
-#+BEGIN_SRC R
-ss <- lapply(list(bma.1,bma.2,bma.3,bma.4), snp.summary)
-expand.snps<-c("rs2379078","rs4880781")
-bma.e1 <- bma.expand(data.99, bma.1, groups=groups[expand.snps])
-#+END_SRC
-
-
-** Excluding SNPs with low single SNP support
+** Speedup 2: excluding SNPs with low single SNP support
 We can consider an additional way to prune the model space: exclude
 SNPs with very limited single SNP support.  In this case, we drop
 SNPs that have a 2 log Bayes Factor (versus the null model with no
@@ -233,18 +262,9 @@ if a child model has a parent model with $f$-fold greater support,
 and have set the default at $f=10$.
 
 Here, we compare the child and parent models in =bma.1= and =bma.2d=
-to determine the set of models we will not explore.
-
-#+begin_src R
-## assume a binomial prior for the number of SNPs with expectation of 3 causal SNPs
-## ie exactly the scenario simulated!
-priors <- prior.binomial(1:10, n=ncol(X), expected=3)
-drop.1.2 <- models.diff(parents=bma.1, children=bma.2d)
-drop.1.2
-#+end_src R
-
-One way to implement this would be to determine all the possible three
-SNP models, then delete those that are children of the dropped models.
+to determine the set of models we will not explore.  One way to
+implement this would be to determine all the possible three SNP
+models, then delete those that are children of the dropped models.
 But a faster way is to drop these models from the =bma2= object, then
 use =bma.grow()= to automatically fit all the child models of those
 which remain.
@@ -274,67 +294,6 @@ bma.3d
 bma.3d2
 #+END_SRC
 
-#+begin_src R
-## tagging only
-bma.3 <- bma.nsnps(data, nsnps=3)
-
-## tagging + excluding poorly supported single SNPs
-bma.3d <- bma.nsnps(data2, nsnps=3)
-
-## as above, + excluding future generations 
-bma.3dd <- bma.nsnps(data2, nsnps=3, models.drop=drop.1.2)
-
-#+end_src
-
-And do the same for 4 SNP models
-
-#+begin_src R
-## define
-drop.2.3 <- mcomp(parents=bma.2d, children=bma.3dd,
-                     prior.parents=priors[2],
-                     prior.children=priors[3])
-drop.2.3
-
-## tagging only
-bma.4 <- bma.nsnps(data, nsnps=4)
-
-## tagging + excluding poorly supported single SNPs
-bma.4d <- bma.nsnps(data2, nsnps=4)
-
-## as above, + excluding future generations 
-## NB, this fails because no models have enough support to be tested
-bma.4dd <- bma.nsnps(data2, nsnps=4, 
-                     models.drop=list(drop.1.2, drop.2.3))
-
-## Instead, for the purpose of this example, we will exclude only 
-## models dropped in the first set
-bma.4dd <- bma.nsnps(data2, nsnps=4, 
-                      models.drop=drop.1.2)
-#+end_src
-
-Finally, to visulize the path that we have taken through the
-generations of models, we can use the ==graphBMA== function:
-
-#+begin_src R
- g<-graphBMA(list(bma.1,bma.2,bma.3,bma.4), priors)
- gd<-graphBMA(list(bma.1,bma.2d,bma.3d,bma.4d), priors)
- gdd<-graphBMA(list(bma.1,bma.2d,bma.3dd,bma.4dd), priors)
-
-graphView(g) + ggtitle("Tagging only")
-graphView(gd) + ggtitle("Tagging plus single level exclusion")
-graphView(gdd) + ggtitle("All exclusions")
-#+end_src
-
-This shows there is essentially a single model with 3 SNPs with strong
-support, and one with two SNPs with less support.  What are those top
-models?
-
-#+begin_src R
-top.models(bma.2)
-top.models(bma.3)
-#+end_src 
-
-** Adding back the tags
 
 * Automating the analysis
 
@@ -342,6 +301,8 @@ There are a lot of steps above.  It's good to understand the detail
 of how we approach the problem, but once you understand it, it can be
 tedious to run each step.  We have a function, =bma.auto()=, that
 should automate much of this.
+
+TODO!!!
 
 #+begin_src LATEX
 \bibliographystyle{plain}

@@ -2,12 +2,12 @@ graphBMA <- function(bma.list, priors) {
   n <- length(bma.list)
   priors2 <- priors[1:n]/sapply(as.list(1:n), function(i) { bma.list[[i]]@nmodels })
   graphs <- lapply(as.list(1:(n-1)), function(i) {
-    nparents <- if(length(bma.list[[i]]@groups)) { length(bma.list[[i]]@groups) } else { bma.list[[i]]@nmodels }
-    nchild <- if(length(bma.list[[i+1]]@groups)) { length(bma.list[[i+1]]@groups) } else { bma.list[[i+1]]@nmodels }
+    ## nparents <- if(length(bma.list[[i]]@groups)) { length(bma.list[[i]]@groups) } else { bma.list[[i]]@nmodels }
+    ## nchild <- if(length(bma.list[[i+1]]@groups)) { length(bma.list[[i+1]]@groups) } else { bma.list[[i+1]]@nmodels }
     relate(parents=bma.list[[i]], children=bma.list[[i+1]],
            name.parent=paste("M",i,sep=""), name.child=paste("M",i+1,sep=""),
-           prior.parent=priors[i]/nparents,
-           prior.child=priors[i+1]/nchild,
+           prior.parent=priors2[i],
+           prior.child=priors2[i+1],
            groups=bma.list[[i]]@groups, do.edges=1)
   })
   g <- graphs.merge(graphs)
@@ -32,19 +32,27 @@ graphView <- function(g, what="pp") {
    ggplot(v, aes(x=x, y=y))  +
 ##      geom_segment(data=edges, mapping=aes(x=x.from, xend=x.to, y=pp.from, yend=pp.to, linetype=type, alpha=0.05)) +
       geom_segment(data=edges, mapping=aes(x=x.from, xend=x.to, y=yfrom, yend=yto)) +
-        geom_point(aes(col=logpp), size=5) 
+        geom_point(aes(col=logpp), size=5) +
+        geom_text(mapping=aes(label=name), hjust=0) +
+          xlim(c(min(v$x), max(v$x) + 0.3))
 }
 
 within.graph <- function(models, groups, name, target) {
   mg.models <- models.group.collapse(models, groups=groups)
   models.linked <- crossprod(t(mg.models))
   tmp <- Matrix(0,nrow(models.linked),ncol(models.linked),
-                dimnames=list(paste(name,1:nrow(models.linked),sep="-"),
-                  paste(name,1:nrow(models.linked),sep="-")))
+                dimnames=list(paste(name,model.names(mg.models),sep="-"),
+                  paste(name,model.names(mg.models),sep="-")))
   tmp[models.linked==target] <- 1
+  diag(tmp) <- 0
   g.child <- graph.adjacency(tmp)
   g.child <- set.edge.attribute(g.child, "LD", value=TRUE)
   return(g.child)
+}
+
+model.names <- function(models) {
+  m <- as(models, "dgTMatrix")
+  sapply(split(m@j,m@i), paste, collapse="-")
 }
 
 relate <- function(parents, children, name.parent="parent", name.child="child",
@@ -60,20 +68,21 @@ relate <- function(parents, children, name.parent="parent", name.child="child",
 #  rel.prior <- 2*(log(prior.children) - log(prior.parents))
   relate2 <- Matrix(0,nrow(relate),ncol(relate),sparse=TRUE)
   relate2[index] <- bf.parent[ index[,1], 2 ] - bf.child[ index[,2], 2]
-  dimnames(relate2) <- list(paste(name.parent,1:nrow(relate2),sep="-"),
-                            paste(name.child,1:ncol(relate2),sep="-"))
+  
+  dimnames(relate2) <- list(paste(name.parent,model.names(m.parent),sep="-"),
+                            paste(name.child,model.names(m.child),sep="-"))
   g <- graph.incidence(relate2)
 
   ## group edges
-  if(length(groups)) {
-     gList <- list(set.edge.attribute(g, "LD", value=FALSE))
-    if(do.edges==2) ## children
-      gList <- c(gList, list(within.graph(m.child, groups, name.child, children@nsnps)))
-    if(do.edges>0) ## parents
-      gList <- c(gList, list(within.graph(m.parent, groups, name.parent, parents@nsnps)))
-    g <- graphs.merge(gList)
-     g <- edge.colour(g, "LD")
-  }
+  ## if(length(groups)) {
+  ##    gList <- list(set.edge.attribute(g, "LD", value=FALSE))
+  ##   if(do.edges==2) ## children
+  ##     gList <- c(gList, list(within.graph(m.child, groups, name.child, children@nsnps)))
+  ##   if(do.edges>0) ## parents
+  ##     gList <- c(gList, list(within.graph(m.parent, groups, name.parent, parents@nsnps)))
+  ##   g <- graphs.merge(gList)
+  ##    g <- edge.colour(g, "LD")
+  ## }
                              
   g <- set.vertex.attribute(g, "generation", rownames(relate2), name.parent)
   g <- set.vertex.attribute(g, "generation", colnames(relate2), name.child)

@@ -1,5 +1,5 @@
 ################################################################################
-## snpBMA, snpBMAdata
+## snpBMA
 setMethod("show", signature="snpBMA",
           function(object) {
             nmod <- nrow(object@models)
@@ -10,7 +10,17 @@ setMethod("show", signature="snpBMA",
             cat("Top models:\n")
             print(top.models(object))
           })
-
+setMethod("initialize", signature(.Object = "snpBMA"),
+    function (.Object, nmodels, snps, groups, bf, models, nsnps, ...)  {
+      if(length(groups)) {
+        nogroup <- setdiff(unique(snps), unlist(groups))
+        names(nogroup) <- nogroup
+        if(length(nogroup))          
+          groups <- c(groups, as.list(nogroup))
+      }
+      callNextMethod(.Object, nmodels=nmodels, snps=snps, groups=groups, bf=bf,
+                     models=models, nsnps=nsnps, ...)
+    })
 setMethod("[",
           signature=c(x="snpBMA", i="ANY", j="missing", drop="missing"),
           function(x, i) {
@@ -21,8 +31,59 @@ setMethod("[",
               bf=x@bf[i, ],
               models=x@models[i, ],
               nsnps=x@nsnps) })
-  
 
+setMethod("snps0",
+          signature=c(object="snpBMA"),
+          function(object) {
+            snps <- colnames(object@models)
+            names(snps) <- 0:(length(snps)-1)
+            return(snps)
+          })
+setMethod("top.models",
+          signature=c(object="snpBMA"),
+          function(object, ...) {
+            top.snpBMA(object, ...) })
+
+################################################################################
+
+## snpBMAlist
+## setMethod("initialize", signature(.Object = "snpBMAlist"),
+##     function (.Object, ...)  {
+##       .Object@object=list(...)
+##       return(.Object)  })
+setMethod("stack", signature(object="snpBMA"),
+          function(object, ...) {
+            new("snpBMAlist", list(object, ...)) })
+setMethod("show", signature(object="snpBMAlist"),
+          function(object) {
+            cat("A list of",length(object),"snpBMA objects.\n") })
+setMethod("top.models",
+          signature=c(object="snpBMAlist"),
+          function(object, ...) {
+            top.snpBMAlist(object, ...) })
+
+
+################################################################################
+##  snpBMAdata
+setMethod("show", signature="snpBMAdata",
+          function(object) {
+            nsamp <- length(object@Y)
+            nsnp <- ncol(object@X)
+            
+            cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals and genotypes on",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
+          })
+setMethod("[",
+          signature=c(x="snpBMAdata", i="missing", j="ANY", drop="missing"),
+          function(x, j) {
+            newX <- x@X[,j,drop=FALSE]
+            newsnps <- colnames(newX)
+            newtags <- x@tags[ x@tags %in% newsnps ]
+            new("snpBMAdata",
+                X=newX,
+                Y=x@Y,
+                family=x@family,
+                tags=newtags) })
+  
 ################################################################################
 ## Models
 setMethod("show", signature="Models",
@@ -72,7 +133,7 @@ setMethod("snps","dropModels",
           function(object) {
             return(object@snps)
           })
-setMethod("stackModels","list",
+setMethod("stack","list",
           function(object) {
             nobj <- length(object)
             classes.ok <- sapply(object, is, "dropModels")

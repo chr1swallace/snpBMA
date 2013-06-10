@@ -36,9 +36,11 @@ make.models.slow <- function(snps,n.use,groups=NULL) {
 bind.2 <- function(x,y=NULL) {
   if(!is.null(y))
     x <- list(x,y)
+
+  snps <- unlist(lapply(x, colnames))
   nr <- lapply(x,nrow)
   if(any(nr==0)) # deal with null models
-    return(null.model(nsnp=sum(sapply(x,ncol))))
+    return(null.model(snps=snps))
 
   ind <- expand.grid(lapply(nr, function(n) if(n>0) { 1:n } else { 0 }))
   
@@ -54,6 +56,8 @@ bind.2 <- function(x,y=NULL) {
     if(nrow(x[[i]])) # deal with null models
       mat[, beg[[i]]:end[[i]] ] <- x[[i]][ ind[[i]], ]
 ##  return(Matrix(mat,sparse=TRUE))
+
+  colnames(mat) <- snps
   return(mat)
 ##  system.time( do.call("cBind",mapply(function(mat,i) { mat[i,,drop=FALSE] }, x, as.list(ind), SIMPLIFY=FALSE)))
 }
@@ -372,10 +376,11 @@ mexpand <- function(bma, groups) {
     j <- which(colnames(models)==index.snp)
     msub <- models[i, -j]
     mkeep <- models[-i, -j]
-    msub <- bind.2(models[i, -j], make.models.single(groups[[index.snp]], n.use=1))
-    mkeep <- cbind(models[-i, -j], Matrix(0, nrow(models)-length(i), length(groups[[index.snp]]),
+    msub <- bind.2(models[i, -j, drop=FALSE],
+                   make.models.single(groups[[index.snp]], n.use=1, quiet=TRUE))
+    mkeep <- cbind2(models[-i, -j, drop=FALSE], Matrix(0, nrow(models)-length(i), length(groups[[index.snp]]),
                                           dimnames=list(NULL,groups[[index.snp]])))
-    models <- rbind(msub, mkeep)
+    models <- rbind2(msub, mkeep)
   }
   return(models)
 }
@@ -460,6 +465,9 @@ max.models <- function(snps, n.use, groups=list()) {
   if(!length(groups))
     return(max.models.single(length(snps),n.use))
 
+  nogroups <- setdiff(unique(snps), unlist(groups))
+  if(length(nogroups))
+    groups <- c(groups, as.list(nogroups))
   n.groups <- sapply(groups, length)
   if(all(n.groups==1)) ## all singletons, ignore grouping
      return(max.models.single(length(snps),n.use))

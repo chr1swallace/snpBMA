@@ -5,18 +5,60 @@
 ##' @param nmodels number of models to show
 ##' @return matrix of top models and their Bayes Factors
 ##' @author Chris Wallace
-top.models <- function(object,nmodels=6L) {
+top.snpBMA <- function(object,nmodels=6L, keep.snps=FALSE) {
   if(is.na(nmodels) || nmodels>nrow(object@bf))
     nmodels <- nrow(object@bf)
   o <- head(order(object@bf[,2],decreasing=TRUE),nmodels)
   tm <- object@models[o,]
-  col.drop <- which(apply(tm,2,sum)==0)
-  if(length(col.drop))
-    tm <- tm[,-col.drop]
+  if(!keep.snps) {
+    col.drop <- which(apply(tm,2,sum)==0)
+    if(length(col.drop))
+      tm <- tm[,-col.drop]
+  }
   bf <- object@bf[o,]
   colnames(bf) <- paste("twologB10-phi",1:ncol(bf),sep="")
   cbind(as(tm,"matrix"),bf)
 }
+
+post.snpBMA <- function(object, prior) {
+  onames <- model.names(object@models)
+  obf <- object@bf
+  snps.all <- snps0(object)
+  snps <- lapply(strsplit(onames, "-"), function(x) snps.all[x])
+  rownames(obf) <- lapply(snps, paste, collapse="-")
+  pp <- exp(obf/2) * prior
+  colnames(pp) <- paste("PP_phi=phi.", 1:ncol(pp), sep="")
+  return(pp)
+}
+
+##' Show top models in a snpBMA object
+##'
+##' @title snpBMA
+##' @param object Object of class snpBMA
+##' @param nmodels number of models to show
+##' @return matrix of top models and their Bayes Factors
+##' @author Chris Wallace
+top.snpBMAlist <- function(object,priors,nmodels=6L) {
+  n <- length(object)
+  priors2 <- priors[1:n]/sapply(as.list(1:n), function(i) { object[[i]]@nmodels })
+  pp <- lapply(1:n, function(i) {
+    post.snpBMA(object[[i]], priors2[i])
+  })
+  cn <- colnames(pp[[1]])
+  pp <- do.call("rbind",pp)
+  pp <- t(t(pp) / colSums(pp))
+  pp <- pp[order(pp[,2], decreasing=TRUE),]
+  colnames(pp) <- cn
+  head(x=pp, n=nmodels)
+}
+
+## why doesn't top.models(stack(bma.2,bma.3), priors) call top.snpBMAlist?
+
+top.snps <- function(object, ...) {
+  ts <- top.models(object, ...)
+  unique(unlist(strsplit(rownames(ts), "-")))
+}
+
 ##' Summary Bayes Factors for each SNP
 ##'
 ##' The summary Bayes Factor is the mean of the Bayes Factor for all models containing that SNP, which is valid if the each model has equal prior

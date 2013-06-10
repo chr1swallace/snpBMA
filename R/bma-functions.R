@@ -181,7 +181,7 @@ my.glib <- function(data, models) {
 
   ## if(is.null(getOption("mc.cores"))) {
     cat("Evaluating",nrow(models),"models\n")
-    bf <-   glib(data@X, data@Y, error=error, link=link, models=models, glimest=FALSE, post.bymodel=FALSE)$bf$twologB10
+    results <-   glib(data@X, data@Y, error=error, link=link, models=models, glimest=FALSE, post.bymodel=FALSE)
   ## } else {
   ##   cat("Evaluating",nrow(models),"models","over",getOption("mc.cores",1),"cores.\n")
   ##   njobs <- min(max(options()$mc.cores, 1), nrow(models)) # don't need more than 1 core per model
@@ -195,7 +195,7 @@ my.glib <- function(data, models) {
   ##   bf <- do.call("rbind",inner.results)
   ##   models <- models[ unlist(index.split) , ]
   ## }  
-  return(list(models=models,bf=bf))
+  return(list(models=models,bf=results$bf$twologB10,prior=results$prior))
 }
 
 bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
@@ -245,19 +245,15 @@ bma.grow <- function(data, bma) {
 
 bma.expand <- function(data, bma, groups) {
 
-  nsnps <- bma@nsnps
   models <- mexpand(bma, groups)
 
-  bma.run(data[,colnames(models)], models, nsnps, bma@groups)
+  bma.run(data=data[,colnames(models)],
+          models=models,
+          nsnps=bma@nsnps,
+          groups=groups)
 
 }
 
-## FIX!!
-## > expand.snps<-c("rs2379078","rs4880781")
-## > bma.e1 <- bma.expand(data.99, bma.1, groups=groups[expand.snps])
-## groups not needed, creating a model matrix of 2 x 2 .
-## Error in bind.2(models[i, -j], make.models.single(groups[[index.snp]],  : 
-##   (list) object cannot be coerced to type 'double'
 
 bma.run <- function(data, models, nsnps, groups) {
 
@@ -269,7 +265,8 @@ bma.run <- function(data, models, nsnps, groups) {
              snps=data@tags,
              groups=groups,
              bf=x$bf,
-             models=as(x$models,"dgCMatrix")))
+             models=as(x$models,"dgCMatrix"),
+             prior=x$prior))
 }
 
 
@@ -820,3 +817,4 @@ r2.groups <- function(X,r2.threshold=0.9, snps=NULL, samples=NULL, do.plot=FALSE
 ##        tags=tags,
 ##        bma.mod=bma.mod)       
 ## }
+

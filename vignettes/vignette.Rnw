@@ -1,4 +1,4 @@
-% Created 2013-06-05 Wed 12:44
+% Created 2013-06-10 Mon 16:58
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -31,8 +31,14 @@
 
 %\VignetteIndexEntry{snpBMA analysis}
 
-\section{Simulate some data}
+\section{Bayesian Model Averaging and the BMA package}
 \label{sec-1}
+
+\section{Priors}
+\label{sec-2}
+
+\section{Simulate some data}
+\label{sec-3}
 
 We start with using some sample data from the snpStats package
 including 20 SNPs, and simulating a quantitative trait that depends
@@ -48,11 +54,270 @@ Y <- rnorm(n,mean=as.numeric(X[,1]))*sqrt(0.1) +
   rnorm(n,mean=as.numeric(X[,5]))*sqrt(0.1) +
   rnorm(n,mean=as.numeric(X[,11]))*sqrt(0.1) +
   rnorm(n)*sqrt(0.7)
+(causal <- colnames(X)[c(1,5,11)])
 @ %def
 
-Looking at the ld
+\texttt{X} contains some missing genotypes, but no SNPs with such a low call
+rate we would worry in a large study.  Still, the rest of the analysis
+is easier to interpret for the purposes of a vignette if we fill in
+the missing values.
+
+<<>>=
+summary(X)
+X <- impute.missing(X)
+@ %def
+
+Looking at the LD, we see this is a region in which D' (above the
+diagonal) is very high, whilst $r^2$ can be high between some SNPs,
+and with moderately strong $r^2 \simeq 0.7$ between two of our causal
+SNPs:
 <<fig=TRUE>>=
 ld <- show.ld(X=X)
 @ %def
+\section{Using BMA to identify the causal variants}
+\label{sec-4}
+
+Bayesian model averaging approaches can be slow when the number of
+SNPs is very large, as the number of models grows rapidly.  The
+simulated data are deliberately small here, so that you can compare
+the effect of the different ways we tackle this, which fall into three
+categories: 
+\section{A full BMA analysis using SNP tagging to quickly cover the model space}
+\label{sec-5}
+First, we aim to cover the model space more rapidly by focusing on a
+tagging subset of SNPs, then expand to include the tagged SNPs only in
+the neighbourhood of supported models.  Tags can be selected using the
+\texttt{tag} function, where \texttt{tag.threshold} sets the $r^2$ threshold used to
+group SNPs.  This function makes use of \texttt{hclust} to do the grouping.
+We can see that not all of our causal SNPs will be analysed directly,
+but some through tags.
+
+<<>>=
+tags <- tag(X, tag.threshold=0.8)
+tags[causal]
+@ %def
+
+Now we can consider sets of models, fixing the number of SNPs each
+time.  
+
+<<>>=
+## make a snpBMAdata set
+data <- make.data(X, Y,tags=tags,family="gaussian")
+
+## Calculate Bayes Factors for all one SNP models
+bma.1 <- bma.nsnps(data, nsnps=1)
+
+## Summarise the SNPs with greatest support
+head(ss1 <- snp.summary(bma.1))
+@ %def
+
+Although the \texttt{bma.nsnps()} function works for any
+number of SNPs, it can be simpler to think of growing your BMA models
+from a parent generation (here, all possible one SNP models) to a
+child generation (here, all possible two SNP models).  
+
+<<>>=
+bma.2 <- bma.grow(data=data, bma=bma.1)
+bma.3 <- bma.grow(data=data, bma=bma.2)
+bma.4 <- bma.grow(data=data, bma=bma.3)
+@ %def
+
+\subsection{Visualizing the results}
+\label{sec-5-1}
+
+It can be nice to visualize the support across these generations of
+models graphically.  So far, we have assumed each model within a
+generation has an equal prior, which seems reasonable in the absence
+of specific information about the likely impact of each SNP.
+However, it doesn't seem reasonable that all models, regardless of
+the number of SNPs, should have equal priors.  Models with smaller
+numbers of SNPs should be favoured.  We can implement this by
+specifying a prior for the number of SNPs in a model.  \texttt{snpBMA} has
+two functions to do this, or you can just create your own numeric vector.
+
+<<>>=
+## assume a binomial prior for the number of SNPs with expectation of 3 causal SNPs
+## ie exactly the scenario simulated!
+priors <- prior.binomial(1:10, n=ncol(X), expected=3)
+@ %def
+
+See the help for \texttt{prior.betabinomial} to understand the other
+function available, and the difference to a binomial prior.
+
+<<fig=TRUE>>=
+## create a graph of BMA results so far
+results <- stack(bma.1,bma.2,bma.3,bma.4)
+ g<-graphBMA(bma.list=results, priors)
+
+## g is an igraph, so you can do all the usual stuff with it:
+g
+
+## visualize
+graphView(g)
+@ %def
+
+This shows the models according to posterior probabilities \textbf{across the
+model space visited}.  One model stands out, with SNPs 0, 1 and 5.
+These are 0-based numeric indices of the SNPs included, and we can
+identify these SNPs using:
+
+<<>>=
+snps0(bma.3)[ as.character(c(0,1,5)) ]
+@ %def
+
+but it can be easier just write the top models to screen
+<<>>=
+top.models(results, priors)
+@ %def
+
+\subsection{Add back in the tagged SNPs}
+\label{sec-5-2}
+We used tagging to span the space quickly.  Once we have found our
+favoured models, it makes sense to see how the tagged SNPs in LD with
+SNPs in those models change things.  There are a couple of subtleties
+here to be aware of however:
+
+\begin{enumerate}
+\item the X matrix must be of full rank, which means a small amount of
+tagging may always be necessary, say at r$^{\text{2}}$=0.99
+\item when two SNPs are in strong LD, fitting both in the model can make
+the model uninterpretable.  With snpBMA you can group SNPs so that
+at most one of each group is included in any single model.  The
+default grouping threshold is r$^{\text{2}}$=0.8, but the optimal value will
+depend on your data: with many subjects a higher threshold may be
+appropriate, as the SNPs become statistically distinguishable.
+\end{enumerate}
+
+<<>>=
+## First, tag at r2=0.99
+tags.99 <- tag(X, 0.99)
+
+## group remaining snps at r2=0.8, using the first set of tags above as indices
+groups <- group.tags(tags, keep=tags.99)
+length(groups)
+data.99 <- make.data(X, Y, tags=tags.99, family="guassian")
+@ %def
+
+Now we decide which tag SNP groups we would like to "expand".  We
+choose any SNPs in the top three models, after which the posterior
+probabilities appear to tail off:
+
+<<>>=
+top.models(results, priors)
+expand.snps <- top.snps(results, priors, nmodels=3)
+@ %def
+
+Now we can refit all models including these tagged SNPs in their
+groups:
+<<>>=
+bma.e1 <- bma.expand(data.99, bma.1, groups=groups[expand.snps])
+bma.e2 <- bma.expand(data.99, bma.2, groups=groups[expand.snps])
+bma.e3 <- bma.expand(data.99, bma.3, groups=groups[expand.snps])
+bma.e4 <- bma.expand(data.99, bma.4, groups=groups[expand.snps])
+@ %def
+
+You can see the model space grows much more quickly.  But the end
+result is not dissimilar:
+
+<<fig=TRUE>>=
+## create a graph of BMA results so far
+expand.results <- stack(bma.e1,bma.e2,bma.e3,bma.e4)
+ g.expand<-graphBMA(expand.results, priors)
+
+## visualize
+graphView(g.expand)
+
+top.models(expand.results, priors)
+@ %def
+\subsection{Speedup 2: excluding SNPs with low single SNP support}
+\label{sec-5-3}
+We can consider an additional way to prune the model space: exclude
+SNPs with very limited single SNP support.  In this case, we drop
+SNPs that have a 2 log Bayes Factor (versus the null model with no
+SNPs) < 2.2, a threshold previous described as "weak support".
+
+<<>>=
+## define the list of SNPs to drop
+max.bf <- apply(ss1,1,max)
+snps.drop <- rownames(ss1)[ max.bf < 2.2 ]
+snps.drop
+@ %def
+
+Then we can assess all two SNP models excluding those in snps.drop.  We
+will also analyse the complete set of data, so the two approaches can
+be compared.  To do this, we
+need to prune the snps included in the \texttt{bma.1} object and the \texttt{data} object.
+
+<<>>=
+## generate a new set of tags and snpBMAdata object
+tags <- tags[!(tags %in% snps.drop)]
+data2 <- make.data(X, Y,tags=tags,family="gaussian")
+
+bma.2 <- bma.nsnps(data, nsnps=2)
+bma.2d <- bma.nsnps(data2, nsnps=2)
+@ %def
+\subsection{Excluding unlikely models}
+\label{sec-5-4}
+Models with two or more SNPs can be thought of as children of many
+parent models.  If a two SNP model contains SNPs A and B, then its
+parents are the single SNP models containing either A or B.  Each
+parent model has many potential children.  Thus the model space can
+be partitioned into generations, with each generation containing a
+fixed number of SNPs.  Any two or more SNP model can be reached via
+multiple paths in this model space.
+
+\cite{madigan94} proposed that where child models had a parent with
+greater support than the child, no further "grandchild" models would
+be worth considering.  This is quite a broad pruning.  We choose to
+implement a variation where the future generation models are excluded
+if a child model has a parent model with $f$-fold greater support,
+and have set the default at $f=10$.
+
+Here, we compare the child and parent models in \texttt{bma.1} and \texttt{bma.2d}
+to determine the set of models we will not explore.  One way to
+implement this would be to determine all the possible three SNP
+models, then delete those that are children of the dropped models.
+But a faster way is to drop these models from the \texttt{bma2} object, then
+use \texttt{bma.grow()} to automatically fit all the child models of those
+which remain.
+
+<<BMA3>>=
+priors <- prior.binomial(1:10, n=ncol(X), expected=3)
+
+## prune the bma.2d object
+bma.2dd <- models.prune(parents=bma.1, children=bma.2d, 
+                        prior.parents=priors[1],
+                        prior.children=priors[2])
+
+## grow the BMA to a third generation
+bma.3dd <- bma.grow(data2, bma.2dd)
+
+## for comparison, without pruning, we could use tagging only...
+bma.3 <- bma.nsnps(data, nsnps=3)
+
+## ... or tagging + excluding poorly supported single SNPs
+bma.3d <- bma.nsnps(data2, nsnps=3)
+
+## this should be the same as growing from the bma.2d object
+bma.3d2 <- bma.grow(data2, bma.2d)
+
+bma.3d
+bma.3d2
+@ %def
+
+\section{Automating the analysis}
+\label{sec-6}
+
+There are a lot of steps above.  It's good to understand the detail
+of how we approach the problem, but once you understand it, it can be
+tedious to run each step.  We have a function, \texttt{bma.auto()}, that
+should automate much of this.
+
+TODO!!!
+
+\begin{verbatim}
+\bibliographystyle{plain}
+\bibliography{ProbePosition}
+\end{verbatim}
 % Emacs 24.2.1 (Org mode 8.0.3)
 \end{document}

@@ -331,10 +331,11 @@ mdrop <- function(models, drop, quiet=FALSE) {
     cat(nrow(models),"remain.\n")
   return(models)
 }
+
 ##' Collapse a model matrix by SNP groups
 ##'
 ##' .. content for \details{} ..
-##' @title 
+##' @title models.group.collapse
 ##' @param models 
 ##' @param groups 
 ##' @return A dgCMatrix, with ncol==length(groups), and entry 1 if a SNP from that group is in the model.  Returns the input matrix in the case groups has zero length.

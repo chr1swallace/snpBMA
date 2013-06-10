@@ -24,5 +24,6 @@ Collate:
     'AllGenerics.R'
     'AllMethods.R'
     'graph-functions.R'
+    'impute.R'
 Imports:
     Matrix

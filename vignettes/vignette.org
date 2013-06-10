@@ -151,12 +151,12 @@ These are 0-based numeric indices of the SNPs included, and we can
 identify these SNPs using:
 
 #+BEGIN_SRC R
-snps0(data)[ as.character(c(0,1,5)) ]
+snps0(bma.3)[ as.character(c(0,1,5)) ]
 #+END_SRC
 
 but it can be easier just write the top models to screen
 #+BEGIN_SRC R
-top.models(results)
+top.models(results, priors)
 #+END_SRC
 
 

@@ -217,11 +217,13 @@ graphView(g.expand)
 top.models(expand.results, priors)
 #+END_SRC
 
-** Speedup 2: excluding SNPs with low single SNP support
-We can consider an additional way to prune the model space: exclude
-SNPs with very limited single SNP support.  In this case, we drop
-SNPs that have a 2 log Bayes Factor (versus the null model with no
-SNPs) < 2.2, a threshold previous described as "weak support".
+* Speedup 2: excluding SNPs with low single SNP support
+
+An additional, fairly brute force, way to prune the model space is to
+exclude all SNPs with very limited single SNP support.  In this case,
+we drop SNPs that have a 2 log Bayes Factor (versus the null model
+with no SNPs) < 2.2, a threshold previously described as "weak
+support" (TODO:REF).
 
 #+begin_src R
 ## define the list of SNPs to drop
@@ -236,16 +238,20 @@ be compared.  To do this, we
 need to prune the snps included in the =bma.1= object and the =data= object.
 
 #+begin_src R
-
 ## generate a new set of tags and snpBMAdata object
 tags <- tags[!(tags %in% snps.drop)]
 data2 <- make.data(X, Y,tags=tags,family="gaussian")
 
 bma.2 <- bma.nsnps(data, nsnps=2)
 bma.2d <- bma.nsnps(data2, nsnps=2)
+
+## compare top models
+top.models(bma.2)
+top.models(bma.2d)
 #+end_src
 
-** Excluding unlikely models
+
+* Speedup 3: excluding unlikely models without visiting them
 Models with two or more SNPs can be thought of as children of many
 parent models.  If a two SNP model contains SNPs A and B, then its
 parents are the single SNP models containing either A or B.  Each
@@ -290,8 +296,8 @@ bma.3d <- bma.nsnps(data2, nsnps=3)
 ## this should be the same as growing from the bma.2d object
 bma.3d2 <- bma.grow(data2, bma.2d)
 
-bma.3d
-bma.3d2
+top.models(bma.3d)
+top.models(bma.3d2)
 #+END_SRC
 
 

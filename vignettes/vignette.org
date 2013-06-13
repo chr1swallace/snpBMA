@@ -65,22 +65,20 @@ SNPs:
 ld <- show.ld(X=X)
 #+end_src
 
-* Using BMA to identify the causal variants
-
+* A full BMA analysis using SNP tagging to quickly cover the model space
 Bayesian model averaging approaches can be slow when the number of
 SNPs is very large, as the number of models grows rapidly.  The
 simulated data are deliberately small here, so that you can compare
 the effect of the different ways we tackle this, which fall into three
-categories: 
+categories.
 
-* A full BMA analysis using SNP tagging to quickly cover the model space
-First, we aim to cover the model space more rapidly by focusing on a
-tagging subset of SNPs, then expand to include the tagged SNPs only in
-the neighbourhood of supported models.  Tags can be selected using the
-=tag= function, where =tag.threshold= sets the $r^2$ threshold used to
-group SNPs.  This function makes use of =hclust= to do the grouping.
-We can see that not all of our causal SNPs will be analysed directly,
-but some through tags.
+First, a strategy we recommend by default, is to cover the model space
+more rapidly by focusing on a tagging subset of SNPs, then expand to
+include the tagged SNPs only in the neighbourhood of supported models.
+Tags can be selected using the =tag= function, where =tag.threshold=
+sets the $r^2$ threshold used to group SNPs.  This function makes use
+of =hclust= to do the grouping.  We can see that not all of our causal
+SNPs will be analysed directly, but some through tags.
 
 #+begin_src R 
 tags <- tag(X, tag.threshold=0.8)

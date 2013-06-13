@@ -1,4 +1,4 @@
-% Created 2013-06-10 Mon 16:58
+% Created 2013-06-12 Wed 09:10
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -229,95 +229,5 @@ graphView(g.expand)
 
 top.models(expand.results, priors)
 @ %def
-\subsection{Speedup 2: excluding SNPs with low single SNP support}
-\label{sec-5-3}
-We can consider an additional way to prune the model space: exclude
-SNPs with very limited single SNP support.  In this case, we drop
-SNPs that have a 2 log Bayes Factor (versus the null model with no
-SNPs) < 2.2, a threshold previous described as "weak support".
-
-<<>>=
-## define the list of SNPs to drop
-max.bf <- apply(ss1,1,max)
-snps.drop <- rownames(ss1)[ max.bf < 2.2 ]
-snps.drop
-@ %def
-
-Then we can assess all two SNP models excluding those in snps.drop.  We
-will also analyse the complete set of data, so the two approaches can
-be compared.  To do this, we
-need to prune the snps included in the \texttt{bma.1} object and the \texttt{data} object.
-
-<<>>=
-## generate a new set of tags and snpBMAdata object
-tags <- tags[!(tags %in% snps.drop)]
-data2 <- make.data(X, Y,tags=tags,family="gaussian")
-
-bma.2 <- bma.nsnps(data, nsnps=2)
-bma.2d <- bma.nsnps(data2, nsnps=2)
-@ %def
-\subsection{Excluding unlikely models}
-\label{sec-5-4}
-Models with two or more SNPs can be thought of as children of many
-parent models.  If a two SNP model contains SNPs A and B, then its
-parents are the single SNP models containing either A or B.  Each
-parent model has many potential children.  Thus the model space can
-be partitioned into generations, with each generation containing a
-fixed number of SNPs.  Any two or more SNP model can be reached via
-multiple paths in this model space.
-
-\cite{madigan94} proposed that where child models had a parent with
-greater support than the child, no further "grandchild" models would
-be worth considering.  This is quite a broad pruning.  We choose to
-implement a variation where the future generation models are excluded
-if a child model has a parent model with $f$-fold greater support,
-and have set the default at $f=10$.
-
-Here, we compare the child and parent models in \texttt{bma.1} and \texttt{bma.2d}
-to determine the set of models we will not explore.  One way to
-implement this would be to determine all the possible three SNP
-models, then delete those that are children of the dropped models.
-But a faster way is to drop these models from the \texttt{bma2} object, then
-use \texttt{bma.grow()} to automatically fit all the child models of those
-which remain.
-
-<<BMA3>>=
-priors <- prior.binomial(1:10, n=ncol(X), expected=3)
-
-## prune the bma.2d object
-bma.2dd <- models.prune(parents=bma.1, children=bma.2d, 
-                        prior.parents=priors[1],
-                        prior.children=priors[2])
-
-## grow the BMA to a third generation
-bma.3dd <- bma.grow(data2, bma.2dd)
-
-## for comparison, without pruning, we could use tagging only...
-bma.3 <- bma.nsnps(data, nsnps=3)
-
-## ... or tagging + excluding poorly supported single SNPs
-bma.3d <- bma.nsnps(data2, nsnps=3)
-
-## this should be the same as growing from the bma.2d object
-bma.3d2 <- bma.grow(data2, bma.2d)
-
-bma.3d
-bma.3d2
-@ %def
-
-\section{Automating the analysis}
-\label{sec-6}
-
-There are a lot of steps above.  It's good to understand the detail
-of how we approach the problem, but once you understand it, it can be
-tedious to run each step.  We have a function, \texttt{bma.auto()}, that
-should automate much of this.
-
-TODO!!!
-
-\begin{verbatim}
-\bibliographystyle{plain}
-\bibliography{ProbePosition}
-\end{verbatim}
 % Emacs 24.2.1 (Org mode 8.0.3)
 \end{document}

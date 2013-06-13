@@ -2,9 +2,7 @@
 #'
 #' @name snpBMA
 #' @docType package
-#' @import Matrix
-#' @import VGAM
-#' @import igraph
+#' @import Matrix VGAM igraph
 
 
 NULL

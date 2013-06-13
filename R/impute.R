@@ -1,3 +1,13 @@
+##' Uses snpStats' snp.imputation function
+##'
+##' @title Fill in missing values in SnpMatrix object
+##' @param X 
+##' @param bp 
+##' @param strata 
+##' @param numeric 
+##' @return matrix, either numeric (if numeric=TRUE) or SnpMatrix (if numeric=FALSE)
+##' @author Chris Wallace
+##' @export 
 impute.missing <- function(X,bp=1:ncol(X),strata=NULL, numeric=FALSE) {
   N <- as(X,"numeric")
   if(!is.null(strata)) {

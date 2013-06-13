@@ -7,9 +7,15 @@ library(reshape)
 ##'
 ##' Side effect: displays plot on current graphics device
 ##' @title show.ld
-##' @inheritParams make.groups
 ##' @return invisibly returns matrix with D' in upper.tri() entries and R^2 in lower.tri() entries
 ##' @author Chris Wallace
+##' @export
+##' @param snps optional character vector of column names of X (SNPs)
+##' for which LD should be calculated
+##' @param samples optional character vector of row names of X
+##' (Samples) for which LD should be calculated
+##' @param X a SnpMatrix object
+##' @param lines.limit 
 show.ld <- function(snps=colnames(X), samples=rownames(X), X=snp.data,
                     lines.limit=20) {
  my.colours <- c("#313695", "#4575B4", "#74ADD1", "#ABD9E9", "#E0F3F8", "#FFFFBF",
@@ -104,6 +110,7 @@ myr2 <- function(X) {
 ##' @param samples optional, subset of samples to use
 ##' @return character vector, names are \code{snps}, values are the tag for each SNP
 ##' @author Chris Wallace
+##' @export
 tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL) {
   if(!is.null(snps) || !is.null(samples))
     X <- X[samples,snps]
@@ -145,19 +152,25 @@ collate.bma <- function(results) {
   return(bma.mod)
 }
 
-##' Internal function: restrict to complete.cases of X and Y
+##' Create an snpBMAdata object given a matrix of genotypes and a vector of phenotypes
 ##'
-##' .. content for \details{} ..
-##' @title make.data (internal function)
-##' @param X matrix of explanatory variables
+##' @title make.data
+##' @param X matrix of explanatory variables, either a
+##' \code{SnpMatrix} object, or a numeric matrix with 0, 1, 2
+##' indicating copies of a counted allele at each SNP.  Rows are
+##' samples, columns are SNPs.
 ##' @param Y response
+##' @param tags a named character vector created by the
+##' \code{\link{tag}()} function
 ##' @param family character string, "binomial" or "gaussian", passed to glib
 ##' @return a list with entries X and Y
 ##' @author Chris Wallace
+##' @export
 make.data <- function(X,Y,tags,family="binomial") {
   tags.names <- unique(tags)
   X <- X[,tags.names]
-  if(is(X,"SnpMatrix") || is(X,"XSnpMatrix"))
+  if(is(X,"SnpMatrix") || is(X,"XSnpMatrix"
+))
     X <- as(X,"numeric")
   keep <- complete.cases(X)
   cat("Keeping",sum(keep),"of",nrow(X),"samples and",ncol(X),"SNPs\n")
@@ -169,7 +182,13 @@ make.data <- function(X,Y,tags,family="binomial") {
 }
 
 
-
+##' Internal function, wrapper for BMA's glib
+##'
+##' @title my.glib
+##' @param data snpBMAdata object
+##' @param models matrix of models to fit
+##' @return list containing the essential results from glib
+##' @author Chris Wallace
 my.glib <- function(data, models) {
   if(data@family=="binomial") {
     error <- "binomial"
@@ -198,6 +217,16 @@ my.glib <- function(data, models) {
   return(list(models=models,bf=results$bf$twologB10,prior=results$prior))
 }
 
+##' Fit possible models with a fixed number of SNPs in each model
+##'
+##' @title  bma.nsnps
+##' @param data object of class snpBMAdata
+##' @param nsnps number of SNPs to include in each model
+##' @param groups list of character vectors.  Each vector contains a set of SNPs in LD, of which at most one should be included in any model.
+##' @param models.drop matrix of models that shouldn't be visited.  This option is deprecated, it is better use \code{\link{bma.grow}()} instead.
+##' @return object of class snpBMA
+##' @author Chris Wallace
+##' @export
 bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
   if(nsnps<1 || nsnps>ncol(data@X))
     stop("nsnps must lie between 1 and ncol(data@X) inclusive")
@@ -222,16 +251,17 @@ bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
 
   bma.run(data, models, nsnps, groups)
 
-  ## x <- my.glib(data, models)
-  ## return(new("snpBMA",
-  ##            nsnps=nsnps,
-  ##            nmodels=nmodels,
-  ##            snps=data@tags,
-  ##            groups=groups,
-  ##            bf=x$bf,
-  ##            models=x$models))             
 }
 
+##' Grow the next generation of SNP models from the current one
+##'
+##' @title bma.grow
+##' @inheritParams bma.nsnps
+##' @param data 
+##' @param bma 
+##' @return object of class snpBMA
+##' @author Chris Wallace
+##' @export
 bma.grow <- function(data, bma) {
 
   nsnps <- bma@nsnps + 1

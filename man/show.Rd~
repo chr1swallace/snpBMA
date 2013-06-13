@@ -1,0 +1,310 @@
+\name{show-methods}
+\docType{methods}
+\alias{show,snpBMA-method}
+\alias{show,snpBMAdata-method}
+\alias{show,snpBMAlist-method}
+\title{ ~~ Methods for Function \code{show} in Package \pkg{snpBMA} ~~}
+\description{
+ ~~ Methods for function \code{show} in package \pkg{snpBMA} ~~
+}
+\section{Methods}{
+\describe{
+
+\item{\code{signature(object = "abIndex")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "ANY")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Block")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "BunchKaufman")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "cao")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "classGeneratorFunction")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "classRepresentation")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Coef.cao")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Coef.qrrvglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Coef.rrvglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Coef.uqo")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "color")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "denseMatrix")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "diagonalMatrix")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "dropModels")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "dsyMatrix")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "dtrMatrix")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Enum")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "EnumDef")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "envRefClass")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "genericFunction")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "genericFunctionWithTrace")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "GlmEstimates")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "GlmTests")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "ImputationRules")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "MatrixFactorization")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "MethodDefinition")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "MethodDefinitionWithTrace")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "MethodSelectionReport")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "MethodWithNext")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "MethodWithNextWithTrace")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "mle")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Models")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "namedList")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Object")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "ObjectsWithPackage")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "oldClass")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "pBunchKaufman")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "qrrvglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "RdCommand")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "refClassRepresentation")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "refMethodDef")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "refObjectGenerator")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "rleDiff")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "rrvglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "signature")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "SingleSnpTests")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "snpBMA")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "snpBMAdata")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "snpBMAlist")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "SnpMatrix")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "sourceEnvironment")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "sparseMatrix")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "sparseVector")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.cao")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.mle")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.qrrvglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.rrvglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.uqo")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.vgam")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.vglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "summary.vlm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "SurvS4")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "SymbolicConstant")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "Tag")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "traceable")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "uqo")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "vgam")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "VGAManova")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "vglm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "vglmff")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "vlm")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "vsmooth.spline")}}{
+%%  ~~describe this method here~~
+}
+
+\item{\code{signature(object = "XSnpMatrix")}}{
+%%  ~~describe this method here~~
+}
+}}
+\keyword{methods}
+\keyword{ ~~ other possible keyword(s) ~~ }

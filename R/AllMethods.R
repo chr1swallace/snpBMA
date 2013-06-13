@@ -1,63 +1,55 @@
 ################################################################################
 ## stack
-##' \name{stack}
-##' \alias{stack}
-##' \title{\name{stack-methods}
-##' \alias{stack-methods}
-##' \alias{stack,list-method}
-##' \alias{stack,snpBMA-method}
-##' \title{ ~~ Methods for Function \code{stack} in Package \pkg{snpBMA} ~~}
-##' \description{
-##'   Stack several \code{\link{snpBMA}} objects together, so they can be
-##'   processed to get posterior probabilities etc.
-##' }
-##' \section{Methods}{
-##' \describe{}
-##' \description{
-##'   \item{\code{signature(object = "list")}}{
-##'     Stack several \code{\link{snpBMA}} objects together, so they can be
-##'     processed to get posterior probabilities etc.
-##'   }
-##' }
-##' % \details{
-##' %   \item{\code{signature(object = "snpBMA")}}{ %% ~~describe
-##' %   this method here~~ } }} \keyword{methods} \keyword{ ~~
-##' %   other possible keyword(s) ~~ }
-##' % }
-##' @keywords methods
-##' @export
-##' @docType methods
+##' @rdname stack-methods
+##' @aliases stack,list-method stack,snpBMA-method
 setMethod("stack", signature(object="snpBMA"),
           function(object, ...) {
             new("snpBMAlist", list(object, ...)) })
 
+## \docType{methods}
+## \name{stack}
+## \alias{stack}
+## \title{\name{stack-methods}
+## \alias{stack-methods}
+## \alias{stack,list-method}
+## \alias{stack,snpBMA-method}
+## \title{ ~~ Methods for Function \code{stack} in Package \pkg{snpBMA} ~~}
+## \description{
+## Stack several \code{\link{snpBMA}} objects together, so they can be
+## processed to get posterior probabilities etc.
+## }
+## \section{Methods}{
+## \describe{}
+## \description{
+## \item{\code{signature(object = "list")}}{
+## Stack several \code{\link{snpBMA}} objects together, so they can be
+## processed to get posterior probabilities etc.
+## }
+## }
+## % \details{
+## %   \item{\code{signature(object = "snpBMA")}}{ %% ~~describe
+## %   this method here~~ } }} \keyword{methods} \keyword{ ~~
+## %   other possible keyword(s) ~~ }
+## % }
+## @keywords methods
+## @export
 
 ################################################################################
 ## show
-##' \name{show-methods}
-##' \docType{methods}
-##' \alias{show,snpBMA-method}
-##' \alias{show,snpBMAdata-method}
-##' \alias{show,snpBMAlist-method}
-##' \title{ ~~ Methods for Function \code{show} in Package \pkg{snpBMA} ~~}
-##' \description{
-##'  ~~ Methods for function \code{show} in package \pkg{snpBMA} ~~
-##' }
-##' \section{Methods}{
-##' \describe{
-##' 
-##' \item{\code{signature(object = "snpBMA")}}{
-##'   Shows summary information and top models from a \code{snpBMA} object
-##' }
-##' 
-##' \item{\code{signature(object = "snpBMAdata")}}{
-##'   Shows summary information from a \code{snpBMAdata} object
-##' }
-##' 
-##' \item{\code{signature(object = "snpBMAlist")}}{
-##'   Shows summary information from a \code{snpBMAlist} object
-##' }
-##' \keyword{methods}
+
+##' Show snpBMA and related objects
+##'
+##' For all objects, a very brief description of the object size is
+##' given.  For snpBMA objects only, the models with greatest support are shown.
+##' @title show-methods
+##' @param object object of class snpBMA, snpBMAdata or snpBMAlist
+##' @return no return value
+##' @author Chris Wallace
+##' @export
+##' @docType methods
+##' @keywords methods
+##' @rdname show-methods
+##' @aliases show,snpBMA-method
 setMethod("show", signature="snpBMA",
           function(object) {
             nmod <- nrow(object@models)
@@ -68,9 +60,13 @@ setMethod("show", signature="snpBMA",
             cat("Top models:\n")
             print(top.models(object))
           })
+##' @rdname show-methods
+##' @aliases show,snpBMAlist-method
 setMethod("show", signature(object="snpBMAlist"),
           function(object) {
             cat("A list of",length(object),"snpBMA objects.\n") })
+##' @rdname show-methods
+##' @aliases show,snpBMAdata-method
 setMethod("show", signature="snpBMAdata",
           function(object) {
             nsamp <- length(object@Y)
@@ -78,6 +74,17 @@ setMethod("show", signature="snpBMAdata",
             
             cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals and genotypes on",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
           })
+## \description{
+##   \item{\code{signature(object = "snpBMA")}}{ Shows summary
+##   information and top models from a \code{snpBMA} object }
+## }
+## \details{
+##   \item{\code{signature(object = "snpBMAdata")}}{ Shows
+##   summary information from a \code{snpBMAdata} object }
+
+##   \item{\code{signature(object = "snpBMAlist")}}{ Shows
+##   summary information from a \code{snpBMAlist} object }
+## }
 
 ################################################################################
 
@@ -110,10 +117,25 @@ setMethod("snps0",
             names(snps) <- 0:(length(snps)-1)
             return(snps)
           })
+
+################################################################################
+## top.models
+
+#' @rdname top.model-methods
+#' @aliases top.model,snpBMA-method
 setMethod("top.models",
           signature=c(object="snpBMA"),
           function(object, ...) {
             top.snpBMA(object, ...) })
+
+#' @rdname top.model-methods
+#' @aliases top.model,snpBMAlist-method
+setMethod("top.models",
+          signature=c(object="snpBMAlist"),
+          function(object, ...) {
+            top.snpBMAlist(object, ...) })
+
+
 
 ################################################################################
 
@@ -122,12 +144,6 @@ setMethod("top.models",
 ##     function (.Object, ...)  {
 ##       .Object@object=list(...)
 ##       return(.Object)  })
-setMethod("top.models",
-          signature=c(object="snpBMAlist"),
-          function(object, ...) {
-            top.snpBMAlist(object, ...) })
-
-
 ################################################################################
 ##  snpBMAdata
 setMethod("[",

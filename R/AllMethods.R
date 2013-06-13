@@ -1,5 +1,63 @@
 ################################################################################
-## snpBMA
+## stack
+##' \name{stack}
+##' \alias{stack}
+##' \title{\name{stack-methods}
+##' \alias{stack-methods}
+##' \alias{stack,list-method}
+##' \alias{stack,snpBMA-method}
+##' \title{ ~~ Methods for Function \code{stack} in Package \pkg{snpBMA} ~~}
+##' \description{
+##'   Stack several \code{\link{snpBMA}} objects together, so they can be
+##'   processed to get posterior probabilities etc.
+##' }
+##' \section{Methods}{
+##' \describe{}
+##' \description{
+##'   \item{\code{signature(object = "list")}}{
+##'     Stack several \code{\link{snpBMA}} objects together, so they can be
+##'     processed to get posterior probabilities etc.
+##'   }
+##' }
+##' % \details{
+##' %   \item{\code{signature(object = "snpBMA")}}{ %% ~~describe
+##' %   this method here~~ } }} \keyword{methods} \keyword{ ~~
+##' %   other possible keyword(s) ~~ }
+##' % }
+##' @keywords methods
+##' @export
+##' @docType methods
+setMethod("stack", signature(object="snpBMA"),
+          function(object, ...) {
+            new("snpBMAlist", list(object, ...)) })
+
+
+################################################################################
+## show
+##' \name{show-methods}
+##' \docType{methods}
+##' \alias{show,snpBMA-method}
+##' \alias{show,snpBMAdata-method}
+##' \alias{show,snpBMAlist-method}
+##' \title{ ~~ Methods for Function \code{show} in Package \pkg{snpBMA} ~~}
+##' \description{
+##'  ~~ Methods for function \code{show} in package \pkg{snpBMA} ~~
+##' }
+##' \section{Methods}{
+##' \describe{
+##' 
+##' \item{\code{signature(object = "snpBMA")}}{
+##'   Shows summary information and top models from a \code{snpBMA} object
+##' }
+##' 
+##' \item{\code{signature(object = "snpBMAdata")}}{
+##'   Shows summary information from a \code{snpBMAdata} object
+##' }
+##' 
+##' \item{\code{signature(object = "snpBMAlist")}}{
+##'   Shows summary information from a \code{snpBMAlist} object
+##' }
+##' \keyword{methods}
 setMethod("show", signature="snpBMA",
           function(object) {
             nmod <- nrow(object@models)
@@ -10,6 +68,19 @@ setMethod("show", signature="snpBMA",
             cat("Top models:\n")
             print(top.models(object))
           })
+setMethod("show", signature(object="snpBMAlist"),
+          function(object) {
+            cat("A list of",length(object),"snpBMA objects.\n") })
+setMethod("show", signature="snpBMAdata",
+          function(object) {
+            nsamp <- length(object@Y)
+            nsnp <- ncol(object@X)
+            
+            cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals and genotypes on",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
+          })
+
+################################################################################
+
 setMethod("initialize", signature(.Object = "snpBMA"),
     function (.Object, nmodels, snps, groups, bf, models, nsnps, ...)  {
       if(length(groups)) {
@@ -51,12 +122,6 @@ setMethod("top.models",
 ##     function (.Object, ...)  {
 ##       .Object@object=list(...)
 ##       return(.Object)  })
-setMethod("stack", signature(object="snpBMA"),
-          function(object, ...) {
-            new("snpBMAlist", list(object, ...)) })
-setMethod("show", signature(object="snpBMAlist"),
-          function(object) {
-            cat("A list of",length(object),"snpBMA objects.\n") })
 setMethod("top.models",
           signature=c(object="snpBMAlist"),
           function(object, ...) {
@@ -65,13 +130,6 @@ setMethod("top.models",
 
 ################################################################################
 ##  snpBMAdata
-setMethod("show", signature="snpBMAdata",
-          function(object) {
-            nsamp <- length(object@Y)
-            nsnp <- ncol(object@X)
-            
-            cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals and genotypes on",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
-          })
 setMethod("[",
           signature=c(x="snpBMAdata", i="missing", j="ANY", drop="missing"),
           function(x, j) {

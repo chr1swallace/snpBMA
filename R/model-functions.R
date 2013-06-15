@@ -460,18 +460,33 @@ max.models.multi <- function(groups, n.use) {
   sum(apply( n.models, 2, prod ))
     
 }
+##' Total possible models that may be formed of n.use out of snps SNPs
+##'
+##' This is a choose(snps, n.use) in the simple case, but
+##' subject to the groups list.Total possible models 
+##'
+##' @title max.models
+##' @param snps Character vector of snp names covering all snps in the region.  Needed if you want to supply \code{groups}
+##' @param n.use Number of SNPs in model
+##' @param n.snps Number of SNPs in region, length(snps).  Either \code{snps} or \code{n.snps} must be specified.
+##' @param groups optional list of character vectors, each giving groups of SNPs in LD, so that only one of any group is included in a model
+##' @return 
+##' @export 
+##' @author Chris Wallace
+max.models <- function(snps=character(0), n.use, n.snps=length(snps), groups=list()) {
 
-max.models <- function(snps, n.use, groups=list()) {
-
+  if(n.snps==0)
+    stop("must supply n.snps (>0) or snps")
+  
   if(!length(groups))
-    return(max.models.single(length(snps),n.use))
+    return(max.models.single(n.snps,n.use))
 
   nogroups <- setdiff(unique(snps), unlist(groups))
   if(length(nogroups))
     groups <- c(groups, as.list(nogroups))
   n.groups <- sapply(groups, length)
   if(all(n.groups==1)) ## all singletons, ignore grouping
-     return(max.models.single(length(snps),n.use))
+     return(max.models.single(n.snps,n.use))
   
   if(all(n.groups>1)) ## all multi, generate models using at most one SNP from each group
     return(max.models.multi(groups, n.use))

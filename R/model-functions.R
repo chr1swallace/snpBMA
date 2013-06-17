@@ -19,10 +19,10 @@ make.models.slow <- function(snps,n.use,groups=NULL) {
     combs <- combn(length(n.groups),n.use)
     models <- vector("list",ncol(combs))
     for(j in 1:ncol(combs)) {
-      models[[j]] <- bind.2(models.list[[combs[1,j]]], models.list[[combs[2,j]]])
+      models[[j]] <- outer.models(models.list[[combs[1,j]]], models.list[[combs[2,j]]])
       if(nrow(combs)>2) {
         for(i in 3:nrow(combs))
-          models[[j]] <- bind.2(models[[j]], models.list[[ combs[i,j] ]])
+          models[[j]] <- outer.models(models[[j]], models.list[[ combs[i,j] ]])
       }
       models[[j]] <- cbind(models[[j]], matrix(0,nrow(models[[j]]), sum(n.groups[ -combs[,j] ])))
       colnames(models[[j]]) <- c(unlist(groups[ combs[,j] ]), unlist(groups[ -combs[,j] ]))
@@ -33,7 +33,7 @@ make.models.slow <- function(snps,n.use,groups=NULL) {
   return(models)
 }
 
-bind.2 <- function(x,y=NULL) {
+outer.models <- function(x,y=NULL) {
   if(!is.null(y))
     x <- list(x,y)
 
@@ -119,7 +119,7 @@ make.models.multi <- function(snps,n.use,groups,quiet=FALSE) {
   models <- vector("list",ncol(combs))
   for(j in 1:ncol(combs)) {
     ##        cat(".")
-    models[[j]] <- bind.2(models.list[ combs[,j] ])
+    models[[j]] <- outer.models(models.list[ combs[,j] ])
     models[[j]] <- cbind(models[[j]],
                          matrix(0,nrow(models[[j]]), sum(n.groups[ -combs[,j] ])))
     colnames(models[[j]]) <- c(unlist(groups[ combs[,j] ]), unlist(groups[ -combs[,j] ]))
@@ -135,6 +135,11 @@ make.models.multi <- function(snps,n.use,groups,quiet=FALSE) {
   }
   ##      models <- do.call("rBind",models)
   return(models.final)
+}
+
+model.empty <- function(snps) {
+  Matrix(0,nrow=1,ncol=length(snps),sparse=TRUE,
+         dimnames=list(NULL,snps))
 }
 
 make.models <- function(snps,n.use,groups=list(),quiet=FALSE) {
@@ -158,19 +163,19 @@ make.models <- function(snps,n.use,groups=list(),quiet=FALSE) {
     cat("mixture of",length(groups)-length(which.single),"groups and",length(which.single),"singles.\n")
   if(!quiet)
     cat("singles first...\n")
-  single.list <- c(list(Matrix(0,nrow=1,ncol=length(which.single),sparse=TRUE)),
+  single.list <- c(list(model.empty(unlist(groups[which.single]))),
                    lapply(as.list(1:n.use), function(i) {
                      make.models(unlist(groups[which.single]), n.use=i,quiet=TRUE) }))
-  ## now each of these needs to bind.2 with all n:0 possibilities from remainder
+  ## now each of these needs to outer.models with all n:0 possibilities from remainder
   if(!quiet)
     cat("multis next...\n")
   multi.list <- c(lapply(as.list(n.use:1), function(i) {
     make.models(unlist(groups[-which.single]), n.use=i, groups=groups[-which.single], quiet=TRUE)
   }),
-                  list(Matrix(0,nrow=1,ncol=sum(n.groups) - length(which.single),sparse=TRUE)))
+                  list(model.empty(unlist(groups[-which.single]))))
   if(!quiet)
-    cat("bind.2\n")
-  models.list <- mapply(bind.2, single.list, multi.list) ## mcmapply
+    cat("outer.models\n")
+  models.list <- mapply(outer.models, single.list, multi.list) ## mcmapply
   if(!quiet)
     cat("finally rBind\n")
   models <- do.call("rBind",models.list)
@@ -260,7 +265,9 @@ models.prune <- function(parents, children, ...) {
                             ntarget=parents@nsnps, n.child=children@nsnps, what="keep", ...)
   return(bma[ newmodels, ])
 }
-
+##' mcomp.detail, internal function
+##'
+##' @title mcomp.detail
 ##' @param m.parent 
 ##' @param m.child 
 ##' @param bf.parent 
@@ -272,6 +279,9 @@ models.prune <- function(parents, children, ...) {
 ##' @param what 
 ##' @param pp.fold 
 ##' @param quiet 
+##' @return object of class dropModels, or an index vector of which
+##' rows of supplied m.child should be dropped
+##' @author Chris Wallace
 mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget, n.child, prior.parents, prior.children, what, pp.fold=10, quiet=FALSE) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
@@ -334,7 +344,7 @@ mdrop <- function(models, drop, quiet=FALSE) {
 
 ##' Collapse a model matrix by SNP groups
 ##'
-##' .. content for \details{} ..
+##' Internal function
 ##' @title models.group.collapse
 ##' @param models 
 ##' @param groups 
@@ -377,7 +387,7 @@ mexpand <- function(bma, groups) {
     j <- which(colnames(models)==index.snp)
     msub <- models[i, -j]
     mkeep <- models[-i, -j]
-    msub <- bind.2(models[i, -j, drop=FALSE],
+    msub <- outer.models(models[i, -j, drop=FALSE],
                    make.models.single(groups[[index.snp]], n.use=1, quiet=TRUE))
     mkeep <- cbind2(models[-i, -j, drop=FALSE], Matrix(0, nrow(models)-length(i), length(groups[[index.snp]]),
                                           dimnames=list(NULL,groups[[index.snp]])))

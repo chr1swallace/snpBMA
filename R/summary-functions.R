@@ -65,7 +65,7 @@ top.snps <- function(object, ...) {
 ##' @title Summary Bayes Factors for each SNP
 ##' @param object Object of class snpBMA
 ##' @param do.order if TRUE (the default), reorder the returned summary of snp Bayes Factors, so that those with the strongest support are shown first
-##' @return a Matrix of class \code{\link{dgeMatrix}} with each row corresponding to a SNP, and each column to a different value of phi
+##' @return a Matrix of class \code{\linkS4class{dgeMatrix}} with each row corresponding to a SNP, and each column to a different value of phi
 ##' @author Chris Wallace
 ##' @export
 snp.summary <- function(object, do.order=TRUE) {

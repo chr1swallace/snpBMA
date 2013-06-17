@@ -6,11 +6,11 @@ n.use <- 2
 snps.single <- snps[9:12]
 snps.multi <- snps[1:8]
 
+context("make.models and make.groups\n")
+
 single.groups <- make.models.single(snps.single,n.use,quiet=TRUE)
 multi.groups <- make.models.multi(snps.multi,n.use,groups[1:3],quiet=TRUE)
 both.groups <- make.models(snps,n.use,groups,quiet=TRUE)
-
-context("make.models run\n")
 
 test_that("make.groups produces dgCMatrix-es", {
   expect_that(single.groups, is_a("dgCMatrix")) 
@@ -76,8 +76,10 @@ test_that("mgrow works on singles", {
   bma <- new("snpBMA",
              snps=snps.single,
              models=single.groups,
+             groups=list(),
              bf=matrix(0,nrow(single.groups),1),
-             nsnps=2)
+             nsnps=2,
+             nmodels=0)
   single.grow <- mgrow(bma, quiet=TRUE)
   expect_identical(  model.string(single.3), model.string(single.grow) )
 })
@@ -89,7 +91,8 @@ test_that("mgrow works on groups", {
              models=multi.groups,
              groups=groups,
              bf=matrix(0,nrow(multi.groups),1),
-             nsnps=2)
+             nsnps=2,
+             nmodels=0)
   multi.grow <- mgrow(bma)
 
   expect_identical( model.string(multi.3), model.string(multi.grow) )
@@ -103,7 +106,8 @@ test_that("mgrow works on mixed groups and singles", {
              models=both.groups,
              groups=groups,
              bf=matrix(0,nrow(both.groups),1),
-             nsnps=2)
+             nsnps=2,
+             nmodels=0)
   both.grow <- mgrow(bma)
 
   expect_identical( model.string(both.3), model.string(both.grow) )

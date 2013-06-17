@@ -18,7 +18,7 @@
   Collapse a model matrix by SNP groups
 }
 \details{
-  .. content for \details{} ..
+  Internal function
 }
 \author{
   Chris Wallace

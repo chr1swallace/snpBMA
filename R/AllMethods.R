@@ -121,15 +121,15 @@ setMethod("snps0",
 ################################################################################
 ## top.models
 
-#' @rdname top.model-methods
-#' @aliases top.model,snpBMA-method
+#' @rdname top.models-methods
+#' @aliases top.models,snpBMA-method
 setMethod("top.models",
           signature=c(object="snpBMA"),
           function(object, ...) {
             top.snpBMA(object, ...) })
 
-#' @rdname top.model-methods
-#' @aliases top.model,snpBMAlist-method
+#' @rdname top.models-methods
+#' @aliases top.models,snpBMAlist-method
 setMethod("top.models",
           signature=c(object="snpBMAlist"),
           function(object, ...) {

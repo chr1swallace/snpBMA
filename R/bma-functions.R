@@ -371,7 +371,6 @@ bma.combine <- function(L) {
 
 ##' create groups of SNPs with LD > r2.threshold with index.snps
 ##'
-##' .. content for \details{} ..
 ##' @title index.groups
 ##' @param X SnpMatrix object
 ##' @param index.snps snps to index groups

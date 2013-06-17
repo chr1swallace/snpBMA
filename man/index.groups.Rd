@@ -25,9 +25,6 @@
   create groups of SNPs with LD > r2.threshold with
   index.snps
 }
-\details{
-  .. content for \details{} ..
-}
 \author{
   Chris Wallace
 }

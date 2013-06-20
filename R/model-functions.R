@@ -212,10 +212,10 @@ models.diff <- function(parents, children, ...) {
 ##' \code{children} object, all child models for which twologBF
 ##' (parent/child) > 2*log(pp.fold)
 ##' @author Chris Wallace
-models.prune.snps <- function(bma, snps.to.drop, ...) {
+models.prune.snps <- function(bma, snps.to.drop) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
-  if(!all(snps.to.drop %in% snps(bma)))
+  if(!all(snps.to.drop %in% bma.1@snps))
     stop("SNPs to drop must be in BMA object\n")
 
   models <- bma@models

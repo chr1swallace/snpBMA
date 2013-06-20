@@ -1,13 +1,18 @@
 graphBMA <- function(bma.list, priors) {
   n <- length(bma.list)
-  priors2 <- priors[1:n]/sapply(as.list(1:n), function(i) { bma.list[[i]]@nmodels })
+  priors2 <- priors[1:n]
+  ## if(!is.null(prior.prob)) {
+  ##   priors2 <- priors[1:n]/sapply(as.list(1:n), function(i) { bma.list[[i]]@nmodels })
+  ## } else {
+  ##   priors2 <- prior.odds
+  ## }
   graphs <- lapply(as.list(1:(n-1)), function(i) {
     ## nparents <- if(length(bma.list[[i]]@groups)) { length(bma.list[[i]]@groups) } else { bma.list[[i]]@nmodels }
     ## nchild <- if(length(bma.list[[i+1]]@groups)) { length(bma.list[[i+1]]@groups) } else { bma.list[[i+1]]@nmodels }
     relate(parents=bma.list[[i]], children=bma.list[[i+1]],
            name.parent=paste("M",i,sep=""), name.child=paste("M",i+1,sep=""),
-           prior.parent=priors2[i],
-           prior.child=priors2[i+1],
+           pp.parent=post.snpBMA(bma.list[[i]], priors2[i]),
+           pp.child=post.snpBMA(bma.list[[i+1]], priors2[i+1]),
            groups=bma.list[[i]]@groups, do.edges=1)
   })
   g <- graphs.merge(graphs)
@@ -22,17 +27,18 @@ graphView <- function(g, what="pp") {
    v$pp <- v$pp/sum(v$pp)
    v$y <- v[,what]
    
-   from <- merge(df[[2]], v[,c("name","x","pp","logpp")], by.y="name", by.x="from")
-   to <- merge(df[[2]], v[,c("name","x","pp","logpp")], by.y="name", by.x="to")
+   from <- merge(df[[2]], v[,c("name","x","pp")], by.y="name", by.x="from")
+   to <- merge(df[[2]], v[,c("name","x","pp")], by.y="name", by.x="to")
    edges <- merge(from, to, by=c("from", "to"), suffixes=c(".from",".to"))
    
    edges$yfrom <- edges[,paste(what, "from", sep=".")]
    edges$yto <- edges[,paste(what, "to", sep=".")]
+   edges$col <- log(edges$yfrom)
    
    ggplot(v, aes(x=x, y=y))  +
 ##      geom_segment(data=edges, mapping=aes(x=x.from, xend=x.to, y=pp.from, yend=pp.to, linetype=type, alpha=0.05)) +
-      geom_segment(data=edges, mapping=aes(x=x.from, xend=x.to, y=yfrom, yend=yto)) +
-        geom_point(aes(col=logpp), size=5) +
+      geom_segment(data=edges, mapping=aes(x=x.from, xend=x.to, y=yfrom, yend=yto), col="grey") +
+        geom_point(aes(col=log(y)), size=5) +
         geom_text(mapping=aes(label=name), hjust=0) +
           xlim(c(min(v$x), max(v$x) + 0.3))
 }
@@ -56,7 +62,7 @@ model.names <- function(models) {
 }
 
 relate <- function(parents, children, name.parent="parent", name.child="child",
-                   prior.parent=NULL, prior.child=NULL, groups=list(), do.edges=0) {
+                   pp.parent=NULL, pp.child=NULL, groups=list(), do.edges=0) {
   m.parent=parents@models
   m.child=children@models
   bf.parent=parents@bf
@@ -88,14 +94,10 @@ relate <- function(parents, children, name.parent="parent", name.child="child",
   g <- set.vertex.attribute(g, "generation", colnames(relate2), name.child)
   g <- set.vertex.attribute(g, "BF", rownames(relate2), bf.parent[,2])
   g <- set.vertex.attribute(g, "BF", colnames(relate2), bf.child[,2])
-  if(!is.null(prior.parent)) {
-    g <- set.vertex.attribute(g, "logpp", rownames(relate2), bf.parent[,2] + 2*log(prior.parent))
-    g <- set.vertex.attribute(g, "pp", rownames(relate2), exp(bf.parent[,2] + 2*log(prior.parent)/2))
-  }
-  if(!is.null(prior.child)) {
-    g <- set.vertex.attribute(g, "logpp", colnames(relate2), bf.child[,2] + 2*log(prior.child))
-    g <- set.vertex.attribute(g, "pp", colnames(relate2), exp(bf.child[,2] + 2*log(prior.child)/2))
-  }
+  if(!is.null(pp.parent))
+    g <- set.vertex.attribute(g, "pp", rownames(relate2), pp.parent[,2])
+  if(!is.null(pp.child))
+    g <- set.vertex.attribute(g, "pp", colnames(relate2), pp.child[,2])
   return(g)
 }
 

@@ -40,7 +40,14 @@ post.snpBMA <- function(object, prior) {
 ##' @author Chris Wallace
 top.snpBMAlist <- function(object,priors,nmodels=6L) {
   n <- length(object)
-  priors2 <- priors[1:n]/sapply(as.list(1:n), function(i) { object[[i]]@nmodels })
+   priors2 <- priors[1:n]
+  ## if(is.null(prior.odds) & is.null(prior.prob))
+  ##   stop("Must specify prior odds OR prior probs")
+  ## if(!is.null(prior.prob)) {
+  ##   priors2 <- priors[1:n]/sapply(as.list(1:n), function(i) { bma.list[[i]]@nmodels })
+  ## } else {
+  ##   priors2 <- prior.odds
+  ## }
   pp <- lapply(1:n, function(i) {
     post.snpBMA(object[[i]], priors2[i])
   })

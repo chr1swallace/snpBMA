@@ -34,9 +34,9 @@ test_that("make.groups have correct number of 1s per row", {
 
 context("max.models\n")
 test_that("max.models works\n", {
-  expect_equal( nrow(single.groups), max.models(snps.single, n.use))
-  expect_equal( nrow(multi.groups), max.models(snps.multi, n.use, groups[1:3]))
-  expect_equal( nrow(both.groups), max.models(snps, n.use, groups))
+  expect_equal( nrow(single.groups), max.models.single(n=length(snps.single), n.use=n.use))
+  expect_equal( nrow(multi.groups), max.models.multi(groups=groups[1:3], n.use=n.use ))
+  expect_equal( nrow(both.groups), max.models(snps=snps, n.use=n.use, groups=groups))
 })    
     
 ################################################################################

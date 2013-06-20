@@ -291,7 +291,7 @@ bma.run <- function(data, models, nsnps, groups) {
   
   return(new("snpBMA",
              nsnps=nsnps,
-             nmodels=max.models(unique(data@tags), nsnps, groups),
+             nmodels=max.models(snps=unique(data@tags), n.use=nsnps, groups=groups),
              snps=data@tags,
              groups=groups,
              bf=x$bf,

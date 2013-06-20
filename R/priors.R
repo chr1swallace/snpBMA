@@ -2,9 +2,8 @@
 ##'
 ##' @title prior.binomial
 ##' @param x number of SNPs in a model (defaults to 1:length(groups), ie returns a vector)
-##' @param groups groups of SNPs, from which at most one SNP should be selected
-##' @param expected expected number of SNPs in a model
-##' @return prior probability/ies as a numeric
+##' @inheritParams prior.betabinomial
+##' @return prior probability/ies or odds as a numeric
 ##' @export
 ##' @author Chris Wallace
 ##' @examples
@@ -15,14 +14,22 @@
 ##' ## a binomial prior
 ##' y <- prior.binomial(x, n, xbar)
 ##' plot(x, y, type="h")
-prior.binomial <- function(x=1:n, n=length(groups), expected, groups=NULL) {
+prior.binomial <- function(x=1:n, n=length(groups), expected, groups=NULL, pi0=0.2, value=c("odds","prob")) {
   x <- as.integer(x)
   if(any(x<0))
     stop("x should be an integer vector >= 0")
   if(any(x>n))
     stop("max x should be <= n")
+  value <- match.arg(value)
   p <- expected/n
-  dbinom(x, size=n, prob=p)  
+  prob <- dbinom(x, size=n, prob=p)
+  if(value=="prob")
+    return(prob)
+
+  ## otherwise value=="odds"
+  if(0 %in% x)
+    prob[x==0] <- pi0
+  return(prob/pi0)
 }
 
 ##' Beta Binomial prior for number of SNPs in a model
@@ -41,12 +48,15 @@ prior.binomial <- function(x=1:n, n=length(groups), expected, groups=NULL) {
 ##' 
 ##' @title prior.betabinomial
 ##' @param x number of SNPs in a model (defaults to 1:length(groups), ie returns a vector)
-##' @param groups groups of SNPs, from which at most one SNP should be selected
+##' @param n total number of SNPs or SNP groups available
 ##' @param expected expected number of SNPs in a model
 ##' @param overdispersion overdispersion parameter.  Setting this to 1
 ##' gives a binomial prior.  Values < 1 are nonsensical: if you really
 ##' believe the prior should be underdispersed relative to a binomial
 ##' distribution, consider using a hypergeometric prior.
+##' @param groups groups of SNPs, from which at most one SNP should be selected
+##' @param pi0 prior probability that no SNP is associated
+##' @param value "odds" or "prob" for prior odds (relative to pi0) or prior probabilities
 ##' @return prior probability/ies as a numeric vector
 ##' @export
 ##' @examples
@@ -70,7 +80,7 @@ prior.binomial <- function(x=1:n, n=length(groups), expected, groups=NULL) {
 ##' points(x, y1.5, col="pink")
 ##' points(x, y2.0, col="green")
 ##' @author Chris Wallace
-prior.betabinomial <- function(x=1:n, n=length(groups), expected, overdispersion=1, groups=NULL) {
+prior.betabinomial <- function(x=1:n, n=length(groups), expected, overdispersion=1, groups=NULL, pi0=0.2, value=c("odds","prob")) {
   if(overdispersion < 1)
     stop("overdispersion parameter should be >= 1")
    x <- as.integer(x)
@@ -78,7 +88,15 @@ prior.betabinomial <- function(x=1:n, n=length(groups), expected, overdispersion
     stop("x should be an integer vector >= 0")
   if(any(x>n))
     stop("max x should be <= n")
+  value <- match.arg(value)
   p <- expected/n
   rho <- (overdispersion - 1)/(n-1)
-  dbetabinom(x, size=n, prob=p, rho=rho)             
+  prob <- dbetabinom(x, size=n, prob=p, rho=rho)             
+  if(value=="prob")
+    return(prob)
+
+  ## otherwise value=="odds"
+  if(0 %in% x)
+    prob[x==0] <- pi0
+  return(prob/pi0)
 }

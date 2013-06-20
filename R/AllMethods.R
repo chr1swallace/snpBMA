@@ -233,7 +233,7 @@ setMethod("prune",
 )
 setMethod("prune",
     signature(object = "snpBMA", prune.object = "character"),
-    function (object, prune.object) 
+    function (object, prune.object, ...) 
     {
       models.prune.snps(children=object, parents=prune.object, ...)
     }

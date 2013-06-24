@@ -8,7 +8,7 @@
 ##' @return matrix, either numeric (if numeric=TRUE) or SnpMatrix (if numeric=FALSE)
 ##' @author Chris Wallace
 ##' @export 
-impute.missing <- function(X,bp=1:ncol(X),strata=NULL, numeric=FALSE) {
+impute.missing <- function(X,bp=1:ncol(X),strata=NULL, numeric=FALSE, ...) {
   N <- as(X,"numeric")
   if(!is.null(strata)) {
     strata <- as.factor(strata)
@@ -17,20 +17,23 @@ impute.missing <- function(X,bp=1:ncol(X),strata=NULL, numeric=FALSE) {
     for(i in levels(strata)) {
       cat("\nstrata",i,"\n")
       wh <- which(strata==i)
-      N[wh,] <- impute.missing(X[wh,,drop=FALSE],bp, numeric=TRUE)
+      N[wh,] <- impute.missing(X[wh,,drop=FALSE],bp, numeric=TRUE, ...)
     }
   } else {
     csumm <- col.summary(X)
-    wh <- which(csumm[,"Call.rate"]<1)
-    cat(length(wh),"to impute\n")
-    for(i in wh) {
+    use <- csumm[,"Certain.calls"]==1
+    X2 <- X[,use]
+    bp <- bp[use]
+    imp <- (csumm[,"Call.rate"]<1)[use]
+    cat(sum(imp),"to impute\n")
+    for(i in which(imp)) {
       cat(i,".")
-      rule <- snp.imputation(X[,-i,drop=FALSE],X[,i,drop=FALSE],bp[-i],bp[i])
+      rule <- snp.imputation(X2[,-i,drop=FALSE],X2[,i,drop=FALSE],bp[-i],bp[i])
       if(is.null(rule@.Data[[1]]))
         next
-      imp <- impute.snps(rule,X[,-i,drop=FALSE])
+      imp <- impute.snps(rules=rule,snps=X2[,rule@.Data[[1]]$snps,drop=FALSE], ...)
       wh.na <- which(is.na(N[,i]))
-      N[wh.na,i] <- imp[wh.na]
+      N[wh.na, colnames(X2)[i]] <- imp[wh.na]
     }
     cat("\n")
   }

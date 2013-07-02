@@ -65,6 +65,8 @@ relate <- function(parents, children, name.parent="parent", name.child="child",
                    pp.parent=NULL, pp.child=NULL, groups=list(), do.edges=0) {
   m.parent=parents@models
   m.child=children@models
+  if(!nrow(m.parent) || !nrow(m.child))
+    return(NULL)
   bf.parent=parents@bf
   bf.child=children@bf
   ntarget=parents@nsnps
@@ -142,6 +144,9 @@ add.attributes <- function(g) {
 }
 
 graphs.merge <- function(gList) {
+  nulls <- sapply(gList,is.null)
+  if(any(nulls))
+    gList <- gList[!nulls]
   dfList <- lapply(gList, get.data.frame, what="both")
   eList <- lapply(dfList, "[[", 2)
   vList <- lapply(dfList, "[[", 1)

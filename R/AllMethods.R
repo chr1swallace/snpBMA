@@ -106,8 +106,8 @@ setMethod("[",
               nmodels=x@nmodels,
               snps=x@snps,
               groups=x@groups,
-              bf=x@bf[i, ],
-              models=x@models[i, ],
+              bf=x@bf[i, , drop=FALSE ],
+              models=x@models[i, , drop=FALSE ],
               nsnps=x@nsnps) })
 
 setMethod("snps0",

@@ -263,7 +263,7 @@ models.prune <- function(parents, children, ...) {
   newmodels <- mcomp.detail(m.parent=parents@models, m.child=children@models,
                             bf.parent=parents@bf, bf.child=children@bf,
                             ntarget=parents@nsnps, n.child=children@nsnps, what="keep", ...)
-  return(bma[ newmodels, ])
+  return(children[ newmodels, ])
 }
 ##' mcomp.detail, internal function
 ##'
@@ -287,7 +287,7 @@ mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget, n.chil
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
 
   cols.use <- intersect(colnames(m.parent),colnames(m.child))
-  relate <- m.parent[,cols.use] %*% Matrix::t(m.child[,cols.use])
+  relate <- m.parent[,cols.use,drop=FALSE] %*% Matrix::t(m.child[,cols.use,drop=FALSE])
 ##  print(relate[1:10,1:10])
   index <- Matrix::which(relate==ntarget, arr.ind=TRUE)
   bf.parent <- bf.parent[ index[,1], 2 ]
@@ -480,7 +480,7 @@ max.models.multi <- function(groups, n.use) {
 ##' @param n.use Number of SNPs in model
 ##' @param n.snps Number of SNPs in region, length(snps).  Either \code{snps} or \code{n.snps} must be specified.
 ##' @param groups optional list of character vectors, each giving groups of SNPs in LD, so that only one of any group is included in a model
-##' @return 
+##' @return The number of possible models
 ##' @export 
 ##' @author Chris Wallace
 max.models <- function(snps=character(0), n.use, n.snps=length(snps), groups=list()) {

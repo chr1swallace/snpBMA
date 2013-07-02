@@ -8,14 +8,14 @@
 top.snpBMA <- function(object,nmodels=6L, keep.snps=FALSE) {
   if(is.na(nmodels) || nmodels>nrow(object@bf))
     nmodels <- nrow(object@bf)
-  o <- head(order(object@bf[,2],decreasing=TRUE),nmodels)
-  tm <- object@models[o,]
+  o <- head(order(object@bf[,2,drop=FALSE],decreasing=TRUE),nmodels)
+  tm <- object@models[o,,drop=FALSE]
   if(!keep.snps) {
     col.drop <- which(apply(tm,2,sum)==0)
     if(length(col.drop))
-      tm <- tm[,-col.drop]
+      tm <- tm[,-col.drop,drop=FALSE]
   }
-  bf <- object@bf[o,]
+  bf <- object@bf[o,,drop=FALSE]
   colnames(bf) <- paste("twologB10-phi",1:ncol(bf),sep="")
   cbind(as(tm,"matrix"),bf)
 }

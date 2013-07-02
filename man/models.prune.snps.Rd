@@ -2,7 +2,7 @@
 \alias{models.prune.snps}
 \title{mcomp}
 \usage{
-  models.prune.snps(bma, snps.to.drop, ...)
+  models.prune.snps(bma, snps.to.drop)
 }
 \arguments{
   \item{bma}{snpBMA object}

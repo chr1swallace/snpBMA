@@ -3,7 +3,7 @@
 \title{Fill in missing values in SnpMatrix object}
 \usage{
   impute.missing(X, bp = 1:ncol(X), strata = NULL,
-    numeric = FALSE)
+    numeric = FALSE, ...)
 }
 \arguments{
   \item{X}{}

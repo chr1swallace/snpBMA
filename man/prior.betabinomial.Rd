@@ -3,14 +3,14 @@
 \title{prior.betabinomial}
 \usage{
   prior.betabinomial(x = 1:n, n = length(groups), expected,
-    overdispersion = 1, groups = NULL)
+    overdispersion = 1, groups = NULL, pi0 = 0.2,
+    value = c("odds", "prob"))
 }
 \arguments{
   \item{x}{number of SNPs in a model (defaults to
   1:length(groups), ie returns a vector)}
 
-  \item{groups}{groups of SNPs, from which at most one SNP
-  should be selected}
+  \item{n}{total number of SNPs or SNP groups available}
 
   \item{expected}{expected number of SNPs in a model}
 
@@ -19,6 +19,14 @@
   nonsensical: if you really believe the prior should be
   underdispersed relative to a binomial distribution,
   consider using a hypergeometric prior.}
+
+  \item{groups}{groups of SNPs, from which at most one SNP
+  should be selected}
+
+  \item{pi0}{prior probability that no SNP is associated}
+
+  \item{value}{"odds" or "prob" for prior odds (relative to
+  pi0) or prior probabilities}
 }
 \value{
   prior probability/ies as a numeric vector

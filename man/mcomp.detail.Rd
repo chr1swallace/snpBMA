@@ -1,6 +1,5 @@
 \name{mcomp.detail}
 \alias{mcomp.detail}
-\title{mcomp.detail}
 \usage{
   mcomp.detail(m.parent, m.child, bf.parent, bf.child,
     ntarget, n.child, prior.parents, prior.children, what,
@@ -28,15 +27,5 @@
   \item{pp.fold}{}
 
   \item{quiet}{}
-}
-\value{
-  object of class dropModels, or an index vector of which
-  rows of supplied m.child should be dropped
-}
-\description{
-  mcomp.detail, internal function
-}
-\author{
-  Chris Wallace
 }
 

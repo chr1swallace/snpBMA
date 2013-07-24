@@ -28,6 +28,8 @@ bma.2 <- bma.nsnps(data, nsnps=2)
 
 bma.2d <- bma.nsnps(data2, nsnps=2)
 
+
+
 priors <- prior.nsnps(0:10, unique(tags), expected=3)
 plot(0:10,priors, type="b")
 priors <- prior.nsnps(1:10, unique(tags), expected=3)

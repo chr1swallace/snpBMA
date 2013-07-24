@@ -19,7 +19,7 @@ test_that("value argument works", {
   expect_that(prior.binomial(1,1,1,value="jjj"), throws_error())
   expect_that(prior.binomial(x=1:10,n=100,expected=3,value="odds",pi0=0.1),
               is_equivalent_to(prior.binomial(x=1:10,n=100,expected=3, value="prob")/0.1))
-  expect_that(prior.betabinomial(0:10,100,3,2,value="odds",pi0=0.1),
+  expect_that(prior.betabinomial(1:10,100,3,2,value="odds",pi0=0.1),
               is_equivalent_to(prior.betabinomial(x=1:10,n=100,expected=3,overdispersion=2, value="prob")/0.1))
 })
 

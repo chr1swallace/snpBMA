@@ -4,7 +4,9 @@
 ##' @aliases stack,list-method stack,snpBMA-method
 setMethod("stack", signature(object="snpBMA"),
           function(object, ...) {
-            new("snpBMAlist", list(object, ...)) })
+              x <- list(object, ...)
+              null <- sapply(x,is.null)
+              new("snpBMAlist", x[!null]) })
 
 ## \docType{methods}
 ## \name{stack}
@@ -70,21 +72,20 @@ setMethod("show", signature(object="snpBMAlist"),
 setMethod("show", signature="snpBMAdata",
           function(object) {
             nsamp <- length(object@Y)
-            nsnp <- ncol(object@X)
+            nsnp <- ncol(object@.Data)
             
-            cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals and genotypes on",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
+            cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals;",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
           })
-## \description{
-##   \item{\code{signature(object = "snpBMA")}}{ Shows summary
-##   information and top models from a \code{snpBMA} object }
-## }
-## \details{
-##   \item{\code{signature(object = "snpBMAdata")}}{ Shows
-##   summary information from a \code{snpBMAdata} object }
-
-##   \item{\code{signature(object = "snpBMAlist")}}{ Shows
-##   summary information from a \code{snpBMAlist} object }
-## }
+##' @rdname show-methods
+##' @aliases show,snpBMAstrat-method
+setMethod("show", signature="snpBMAstrat",
+          function(object) {
+            nsamp <- length(object@Y)
+            nsnp <- ncol(object@.Data)
+            nstrat <- length(unique(object@strata))
+            
+            cat(class(object),"object, with",object@family,"phenotypes.\n",nsamp,"individuals in",nstrat,"strata;",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
+          })
 
 ################################################################################
 
@@ -149,15 +150,53 @@ setMethod("top.models",
 setMethod("[",
           signature=c(x="snpBMAdata", i="missing", j="ANY", drop="missing"),
           function(x, j) {
-            newX <- x@X[,j,drop=FALSE]
+            newX <- x@.Data[,j,drop=FALSE]
             newsnps <- colnames(newX)
             newtags <- x@tags[ x@tags %in% newsnps ]
             new("snpBMAdata",
-                X=newX,
+                .Data=newX,
                 Y=x@Y,
                 family=x@family,
                 tags=newtags) })
-  
+setMethod("[",
+          signature=c(x="snpBMAdata", i="ANY", j="missing", drop="missing"),
+          function(x, i) {
+            new("snpBMAdata",
+                .Data=x@.Data[i,,drop=FALSE],
+                Y=x@Y[i],
+                family=x@family,
+                tags=x@tags) })
+ setMethod("[",
+          signature=c(x="snpBMAstrat", i="missing", j="ANY", drop="missing"),
+          function(x, j) {
+            newX <- x@.Data[,j,drop=FALSE]
+            newsnps <- colnames(newX)
+            newtags <- x@tags[ x@tags %in% newsnps ]            
+            new("snpBMAstrat",
+                .Data=newX,
+                Y=x@Y,
+                family=x@family,
+                tags=newtags,
+                strata=x@strata) })
+setMethod("[",
+          signature=c(x="snpBMAstrat", i="ANY", j="missing", drop="missing"),
+          function(x, i) {
+            newstrat=x@strata[i]
+            if(length(unique(newstrat))==1) {
+              new("snpBMAdata",
+                  .Data=x@.Data[i,,drop=FALSE],
+                  Y=x@Y[i],
+                  family=x@family,
+                  tags=x@tags)
+            } else {
+              new("snpBMAstrat",
+                  .Data=x@.Data[i,,drop=FALSE],
+                  Y=x@Y[i],
+                  family=x@family,
+                  tags=x@tags,
+                  strata=newstrat)
+            } })
+
 ################################################################################
 ## Models
 setMethod("show", signature="Models",
@@ -231,10 +270,30 @@ setMethod("prune",
       models.prune(children=object, parents=prune.object, ...)
     }
 )
-setMethod("prune",
-    signature(object = "snpBMA", prune.object = "character"),
-    function (object, prune.object, ...) 
+##' @rdname snps.prune-methods
+##' @aliases snps.prune,snpBMA-method
+setMethod("snps.prune",
+    signature(object = "snpBMA", snps = "character"),
+    function (object, snps, ...) 
     {
-      models.prune.snps(children=object, parents=prune.object, ...)
+      snps.prune.models(bma=object, snps=snps)
+    }
+)
+##' @rdname snps.prune-methods
+##' @aliases snps.prune,snpBMAdata-method
+setMethod("snps.prune",
+    signature(object = "snpBMAdata", snps = "character"),
+    function (object, snps, ...) 
+    {
+      snps.prune.data(data=object, snps=snps)
+    }
+)
+##' @rdname snps.prune-methods
+##' @aliases snps.prune,snpBMAstrat-method
+setMethod("snps.prune",
+    signature(object = "snpBMAstrat", snps = "character"),
+    function (object, snps, ...) 
+    {
+      snps.prune.data(data=object, snps=snps)
     }
 )

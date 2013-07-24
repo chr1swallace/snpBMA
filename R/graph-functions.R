@@ -6,17 +6,20 @@ graphBMA <- function(bma.list, priors) {
   ## } else {
   ##   priors2 <- prior.odds
   ## }
+  snps <- unique(unlist(lapply(bma.list, function(x) colnames(x@models))))
   graphs <- lapply(as.list(1:(n-1)), function(i) {
-    ## nparents <- if(length(bma.list[[i]]@groups)) { length(bma.list[[i]]@groups) } else { bma.list[[i]]@nmodels }
-    ## nchild <- if(length(bma.list[[i+1]]@groups)) { length(bma.list[[i+1]]@groups) } else { bma.list[[i+1]]@nmodels }
-    relate(parents=bma.list[[i]], children=bma.list[[i+1]],
-           name.parent=paste("M",i,sep=""), name.child=paste("M",i+1,sep=""),
-           pp.parent=post.snpBMA(bma.list[[i]], priors2[i]),
-           pp.child=post.snpBMA(bma.list[[i+1]], priors2[i+1]),
-           groups=bma.list[[i]]@groups, do.edges=1)
+      ## nparents <- if(length(bma.list[[i]]@groups)) { length(bma.list[[i]]@groups) } else { bma.list[[i]]@nmodels }
+      ## nchild <- if(length(bma.list[[i+1]]@groups)) { length(bma.list[[i+1]]@groups) } else { bma.list[[i+1]]@nmodels }
+      relate(parents=bma.list[[i]], children=bma.list[[i+1]],
+             name.parent=paste("M",i,sep=""), name.child=paste("M",i+1,sep=""),
+             pp.parent=post.snpBMA(bma.list[[i]], priors2[i]),
+             pp.child=post.snpBMA(bma.list[[i+1]], priors2[i+1]),
+             groups=bma.list[[i]]@groups, do.edges=1,
+             snps=snps)
   })
   g <- graphs.merge(graphs)
   g <- add.attributes(g)
+  
   return(g)
 }
 
@@ -47,22 +50,33 @@ within.graph <- function(models, groups, name, target) {
   mg.models <- models.group.collapse(models, groups=groups)
   models.linked <- crossprod(t(mg.models))
   tmp <- Matrix(0,nrow(models.linked),ncol(models.linked),
-                dimnames=list(paste(name,model.names(mg.models),sep="-"),
-                  paste(name,model.names(mg.models),sep="-")))
+                dimnames=list(paste(name,model.names(mg.models,num=FALSE),sep="-"),
+                  paste(name,model.names(mg.models,num=FALSE),sep="-")))
   tmp[models.linked==target] <- 1
   diag(tmp) <- 0
   g.child <- graph.adjacency(tmp)
   g.child <- set.edge.attribute(g.child, "LD", value=TRUE)
   return(g.child)
 }
-
-model.names <- function(models) {
-  m <- as(models, "dgTMatrix")
-  sapply(split(m@j,m@i), paste, collapse="-")
+##' Make a character vector naming models uniquely according to the SNPs included
+##' 
+##' @title model.names
+##' @param models model matrix
+##' @param num if TRUE (default), return numerics, otherwise return SNP names
+##' @return character vector of length nrow(models)
+##' @author Chris Wallace
+model.names <- function(models,snps=NULL) {
+    m <- as(models, "dgTMatrix")
+    idx <- split(m@j,m@i)
+    if(!is.null(snps)) {
+        m <- match(colnames(models), snps)
+        idx <- lapply(idx, function(i) snps[m[i+1]])
+    }
+    sapply(idx, paste, collapse="-")
 }
 
 relate <- function(parents, children, name.parent="parent", name.child="child",
-                   pp.parent=NULL, pp.child=NULL, groups=list(), do.edges=0) {
+                   pp.parent=NULL, pp.child=NULL, groups=list(), do.edges=0,snps) {
   m.parent=parents@models
   m.child=children@models
   if(!nrow(m.parent) || !nrow(m.child))
@@ -77,8 +91,8 @@ relate <- function(parents, children, name.parent="parent", name.child="child",
   relate2 <- Matrix(0,nrow(relate),ncol(relate),sparse=TRUE)
   relate2[index] <- bf.parent[ index[,1], 2 ] - bf.child[ index[,2], 2]
   
-  dimnames(relate2) <- list(paste(name.parent,model.names(m.parent),sep="-"),
-                            paste(name.child,model.names(m.child),sep="-"))
+  dimnames(relate2) <- list(paste(name.parent,model.names(m.parent,snps=snps),sep="-"),
+                            paste(name.child,model.names(m.child,snps=snps),sep="-"))
   g <- graph.incidence(relate2)
 
   ## group edges

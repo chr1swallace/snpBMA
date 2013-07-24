@@ -12,9 +12,9 @@
   the strongest support are shown first}
 }
 \value{
-  a Matrix of class \code{\linkS4class{dgeMatrix}} with
-  each row corresponding to a SNP, and each column to a
-  different value of phi
+  a Matrix of class \code{\link{dgeMatrix}} with each row
+  corresponding to a SNP, and each column to a different
+  value of phi
 }
 \description{
   Summary Bayes Factors for each SNP

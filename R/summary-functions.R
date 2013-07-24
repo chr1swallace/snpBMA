@@ -38,9 +38,9 @@ post.snpBMA <- function(object, prior) {
 ##' @param nmodels number of models to show
 ##' @return matrix of top models and their Bayes Factors
 ##' @author Chris Wallace
-top.snpBMAlist <- function(object,priors,nmodels=6L) {
+top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL) {
   n <- length(object)
-   priors2 <- priors[1:n]
+  priors2 <- priors[1:n]
   ## if(is.null(prior.odds) & is.null(prior.prob))
   ##   stop("Must specify prior odds OR prior probs")
   ## if(!is.null(prior.prob)) {
@@ -56,6 +56,14 @@ top.snpBMAlist <- function(object,priors,nmodels=6L) {
   pp <- t(t(pp) / colSums(pp))
   pp <- pp[order(pp[,2], decreasing=TRUE),]
   colnames(pp) <- cn
+
+  if(!is.null(min.pp))
+      return(pp[ pp[,2]>=min.pp, ])
+  if(!is.null(min.cpp)) {
+      cpp <- cumsum(pp[,2])
+      wh <- which(cpp>=min.cpp)[1]
+      return(pp[ 1:wh, ])
+  }      
   head(x=pp, n=nmodels)
 }
 

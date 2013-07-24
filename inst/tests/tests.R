@@ -1,7 +1,13 @@
 ## load sample data
 ##context("prep\n")
 data(for.exercise, package="snpStats")
-test.data <- snps.10[,11:20]
+test.data <- snps.10[,101:110]
+cs <- col.summary(test.data)
+tags <- tag(test.data, 0.9)
+w <- sqrt(0.5)
+mn <- as(test.data[,1],"numeric")
+y <- rnorm(nrow(test.data),mean=ifelse(is.na(mn),0,mn),sd=w) + rnorm(nrow(test.data),sd=sqrt(0.5))
+stratum <- sample(rep(1:2, length.out=length(y)))
 
 ## tagging
 context("tagging\n")
@@ -45,3 +51,10 @@ test_that("l.rbind works", {
 
 ################################################################################
 
+## stratification
+context("stratification")
+data <- make.data(X=test.data, Y=y, tags=tags, family="gaussian")
+sdata <- make.data(X=test.data, Y=y, tags=tags, family="gaussian", strata=stratum)
+
+bma.nsnps(data, nsnps=1)
+bma.nsnps(sdata, nsnps=1)

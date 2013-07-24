@@ -45,3 +45,17 @@ setGeneric("top.models", function(object, ...) { standardGeneric("top.models") }
 
 setGeneric("prune", function(object, prune.object, ...) { standardGeneric( "prune" ) })
 
+##' Drop SNPs from a snpBMAdata or snpBMAstrat object
+##'
+##' @title snps.prune
+##' @param object a snpBMAdata or snpBMAstrat object
+##' @param prune.snps character vector of SNPs to drop
+##' @param ... other arguments, currently ignored
+##' @return object of the same class as \code{object}
+##' @export
+##' @author Chris Wallace
+##' @docType methods
+##' @rdname snps.prune-methods
+##' @aliases snps.prune-methods
+##' @keywords methods
+setGeneric("snps.prune", function(object, snps, ...) { standardGeneric( "snps.prune" ) })

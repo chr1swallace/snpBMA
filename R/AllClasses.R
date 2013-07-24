@@ -12,13 +12,23 @@ setClass("Models",
 ################################################################################
 ## snpBMA, snpBMAdata
 setClass("snpBMAdata",
-         representation(X="matrix",
-                        Y="numeric",
+         representation(Y="numeric",
                         family="character",
                         tags="character"),
+         contains="matrix",
          validity=function(object) {
-           if(length(object@Y) != nrow(object@X))
+           if(length(object@Y) != nrow(object@.Data))
              stop("phenotype vector Y must have length == nrow(X)")
+         })
+
+setClass("snpBMAstrat",
+         representation(strata="factor"),
+         contains="snpBMAdata",
+         validity=function(object) {
+           if(length(object@Y) != nrow(object@.Data))
+             stop("phenotype vector Y must have length == nrow(X)")
+          if(length(object@strata) != nrow(object@.Data))
+             stop("strata vector must have length == nrow(X)")
          })
 
 setClass("snpBMA",

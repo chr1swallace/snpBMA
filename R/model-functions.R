@@ -201,50 +201,6 @@ models.diff <- function(parents, children, ...) {
                       ntarget=parents@nsnps, what="drop", ...))
 }
 
-##' Compare potential parent and child models according to BF
-##'
-##' Returns models whose children SHOULD be visited
-##' @title mcomp
-##' @param bma snpBMA object
-##' @param snps character vector of snps to drop
-##' @param ... arguments passed to mcomp.detail()
-##' @return a snpBMA object with a subset of models in the input
-##' \code{children} object, all child models for which twologBF
-##' (parent/child) > 2*log(pp.fold)
-##' @author Chris Wallace
-models.prune.snps <- function(bma, snps.to.drop) {
-  ## for each child model, identify its parents
-  ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
-  if(!all(snps.to.drop %in% bma.1@snps))
-    stop("SNPs to drop must be in BMA object\n")
-
-  models <- bma@models
-  models.drop <- which(rowSums(models[,snps.to.drop]) > 0)
-  if(length(models.drop))
-    return(bma[-models.drop, ])
-
-  return(bma)
-}
- 
-##' Compare potential parent and child models according to BF
-##'
-##' Returns models whose children SHOULD be visited
-##' @title mcomp
-##' @param bma snpBMA object
-##' @param snps character vector of snps to drop
-##' @param ... arguments passed to mcomp.detail()
-##' @return a snpBMA object with a subset of models in the input
-##' \code{children} object, all child models for which twologBF
-##' (parent/child) > 2*log(pp.fold)
-##' @author Chris Wallace
-snps.prune.data <- function(data, snps.to.drop, ...) {
-  ## for each child model, identify its parents
-  ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
-  tags <- data@tags
-  tags <- tags[!(tags %in% snps.drop)]
-
-  make.data(data@X, data@Y,tags=tags, family=data@family)
-}
 
 ##' Compare potential parent and child models according to BF
 ##'

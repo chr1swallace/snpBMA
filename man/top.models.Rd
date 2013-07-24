@@ -1,9 +1,8 @@
-\name{top.snpBMAlist}
-\alias{top.snpBMAlist}
+\name{top.models}
+\alias{top.models}
 \title{snpBMA}
 \usage{
-  top.snpBMAlist(object, priors, nmodels = 6L,
-    min.pp = NULL, min.cpp = NULL)
+  top.models(object, nmodels = 6L)
 }
 \arguments{
   \item{object}{Object of class snpBMA}

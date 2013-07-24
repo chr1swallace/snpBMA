@@ -4,6 +4,7 @@
 \alias{show,snpBMA-method}
 \alias{show,snpBMAdata-method}
 \alias{show,snpBMAlist-method}
+\alias{show,snpBMAstrat-method}
 \title{show-methods}
 \arguments{
   \item{object}{object of class snpBMA, snpBMAdata or

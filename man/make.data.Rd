@@ -2,7 +2,7 @@
 \alias{make.data}
 \title{make.data}
 \usage{
-  make.data(X, Y, tags, family = "binomial")
+  make.data(X, Y, tags, family = "binomial", strata = NULL)
 }
 \arguments{
   \item{X}{matrix of explanatory variables, either a

@@ -1,17 +1,17 @@
-\name{snps.prune.data}
-\alias{snps.prune.data}
+\name{snps.prune.models}
+\alias{snps.prune.models}
 \title{mcomp}
 \usage{
-  snps.prune.data(data, snps)
+  snps.prune.models(bma, snps)
 }
 \arguments{
-  \item{data}{snpBMAdata or snpBMAstrat object}
+  \item{bma}{snpBMA object}
 
   \item{snps}{character vector of snps to drop}
 }
 \value{
-  object of same class as \code{data}, with SNPs in
-  \code{snps} dropped.
+  a snpBMA object with a subset of models containing only
+  SNPs not included in \code{snps}
 }
 \description{
   Compare potential parent and child models according to BF

@@ -379,8 +379,10 @@ mgrow <- function(bma, quiet=FALSE) {
    ## prune1: SNPs should only be counted once
   nzero <- summary(m)
   x2 <- which(nzero[,"x"]==2)
-  i.drop <- nzero[ x2, "i"]
-  nzero <- nzero[ !(nzero[,"i"] %in% i.drop), ]
+  if(length(x2)) {
+      i.drop <- nzero[ x2, "i"]
+      nzero <- nzero[ !(nzero[,"i"] %in% i.drop), ]
+  }
 
   ## prune 2: multiple paths to each model, keep unique
   rows.split <- split( nzero[,"j"], nzero[,"i"] )

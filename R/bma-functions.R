@@ -162,8 +162,8 @@ bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
 ##'
 ##' @title bma.grow
 ##' @inheritParams bma.nsnps
-##' @param data 
-##' @param bma 
+##' @param data object of class snpBMAdata
+##' @param bma object of class snpBMA
 ##' @return object of class snpBMA
 ##' @author Chris Wallace
 ##' @export

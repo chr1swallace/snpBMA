@@ -34,7 +34,7 @@ post.snpBMA <- function(object, prior) {
 ##' Show top models in a snpBMA object
 ##'
 ##' @title snpBMA
-##' @param object Object of class snpBMA
+##' @param object Object of class snpBMAlist
 ##' @param nmodels number of models to show
 ##' @return matrix of top models and their Bayes Factors
 ##' @author Chris Wallace
@@ -66,7 +66,14 @@ top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL) 
   }      
   head(x=pp, n=nmodels)
 }
-
+##' Extract SNPs from top.models
+##'
+##' @title top.snps
+##' @param object snpBMA or snpBMAlist object
+##' @param ... additional arguments to pass to top.models, notably \code{nmodels}: the number of models to include
+##' @return character vector of SNP names
+##' @author Chris Wallace
+##' @export
 top.snps <- function(object, ...) {
   ts <- top.models(object, ...)
   unique(unlist(strsplit(rownames(ts), "-")))

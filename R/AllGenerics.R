@@ -33,7 +33,7 @@ setGeneric("stack", function(object,...) { standardGeneric ("stack") })
 ##'
 ##' @title top.models
 ##' @param object object of class snpBMA or snpBMAlist
-##' @param ... number of models to show
+##' @param ... additional arguments, notably \code{nmodels}: number of models to show
 ##' @return no return value, models are printed to screen
 ##' @author Chris Wallace
 ##' @export

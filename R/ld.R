@@ -29,8 +29,10 @@ show.ld <- function(X, snps=colnames(X), samples=rownames(X),
            stat=c("D.prime","R.squared"),
            symmetric=TRUE)
   ld <- as.matrix(LD$R.squared)
-  ld[upper.tri(ld)] <- t(as.matrix(LD$D.prime))[ upper.tri(ld) ]
-  diag(ld) <- 1
+ wh <- which(upper.tri(ld))
+  ld[wh] <- as.matrix(LD$D.prime)[ wh ]
+ 
+ diag(ld) <- 1
  if(!is.null(groups))
    colnames(ld) <- rownames(ld) <- paste(groups,colnames(ld),sep="/")
  

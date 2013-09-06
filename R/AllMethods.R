@@ -1,40 +1,24 @@
 ################################################################################
 ## stack
 ##' @rdname stack-methods
-##' @aliases stack,list-method stack,snpBMA-method
+##' @aliases stack,snpBMA-method
 setMethod("stack", signature(object="snpBMA"),
           function(object, ...) {
               x <- list(object, ...)
               null <- sapply(x,is.null)
               new("snpBMAlist", x[!null]) })
-
-## \docType{methods}
-## \name{stack}
-## \alias{stack}
-## \title{\name{stack-methods}
-## \alias{stack-methods}
-## \alias{stack,list-method}
-## \alias{stack,snpBMA-method}
-## \title{ ~~ Methods for Function \code{stack} in Package \pkg{snpBMA} ~~}
-## \description{
-## Stack several \code{\link{snpBMA}} objects together, so they can be
-## processed to get posterior probabilities etc.
-## }
-## \section{Methods}{
-## \describe{}
-## \description{
-## \item{\code{signature(object = "list")}}{
-## Stack several \code{\link{snpBMA}} objects together, so they can be
-## processed to get posterior probabilities etc.
-## }
-## }
-## % \details{
-## %   \item{\code{signature(object = "snpBMA")}}{ %% ~~describe
-## %   this method here~~ } }} \keyword{methods} \keyword{ ~~
-## %   other possible keyword(s) ~~ }
-## % }
-## @keywords methods
-## @export
+##' @rdname stack-methods
+##' @aliases stack,modelSummary-method 
+setMethod("stack",signature(object="modelSummary"),
+          function(object, ...) {
+            L <- list(object,...)
+            x <- do.call("rbind", L)
+            colnames(x) <- colnames(object)
+            snps <- do.call("c",lapply(L, function(o) o@snps))
+            snpsep <- object@snpsep
+            new("modelSummary",
+                .Data=x, snps=snps, snpsep=snpsep)
+          })
 
 ################################################################################
 ## show
@@ -68,13 +52,20 @@ setMethod("show", signature(object="snpBMAlist"),
           function(object) {
             cat("A list of",length(object),"snpBMA objects.\n") })
 ##' @rdname show-methods
+##' @aliases show,modelSummary-method
+setMethod("show", signature(object="modelSummary"),
+          function(object) {
+            tmp <- object@.Data
+            rownames(tmp) <- lapply(object@snps, paste, collapse=object@snpsep)
+            show(tmp) })
+##' @rdname show-methods
 ##' @aliases show,snpBMAdata-method
 setMethod("show", signature="snpBMAdata",
           function(object) {
             nsamp <- length(object@Y)
-            nsnp <- ncol(object@.Data)
-            
-            cat("snpBMAdata object, with",object@family,"phenotypes on",nsamp,"individuals;",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
+            nsnp <- length(object@tags)
+            ntag <- ncol(object@.Data)
+            cat("snpBMAdata object, with",object@family,"phenotypes on\n",nsamp,"individuals\n",nsnp,"SNPs, represented by\n",ntag,"tags.\n")
           })
 ##' @rdname show-methods
 ##' @aliases show,snpBMAstrat-method
@@ -110,6 +101,13 @@ setMethod("[",
               bf=x@bf[i, , drop=FALSE ],
               models=x@models[i, , drop=FALSE ],
               nsnps=x@nsnps) })
+setMethod("[",
+          signature=c(x="modelSummary", i="ANY", j="missing", drop="ANY"),
+          function(x, i) {
+            new("modelSummary",
+                .Data=x@.Data[i,,drop=FALSE],
+                snps=x@snps[i],
+                snpsep=x@snpsep)})
 
 setMethod("snps0",
           signature=c(object="snpBMA"),
@@ -120,10 +118,22 @@ setMethod("snps0",
           })
 
 ################################################################################
+## snps
+
+#' @rdname snps-methods
+#' @aliases snps,modelSummary-method
+setMethod("snps",
+          signature=c(object="modelSummary"),
+          function(object) {
+            unique(unlist(object@snps))                   
+          })
+
+################################################################################
 ## top.models
 
 #' @rdname top.models-methods
 #' @aliases top.models,snpBMA-method
+#' @seealso \code{\link{top.snpBMA}} for application to top.snpBMA objects
 setMethod("top.models",
           signature=c(object="snpBMA"),
           function(object, ...) {
@@ -131,10 +141,28 @@ setMethod("top.models",
 
 #' @rdname top.models-methods
 #' @aliases top.models,snpBMAlist-method
+#' @seealso \code{\link{top.snpBMAlist}} for application to top.snpBMAlist objects
 setMethod("top.models",
           signature=c(object="snpBMAlist"),
           function(object, ...) {
             top.snpBMAlist(object, ...) })
+
+################################################################################
+## top.snps
+
+#' @rdname top.snps-methods
+#' @aliases top.snps,snpBMA-method
+setMethod("top.snps",
+          signature=c(object="snpBMA"),
+          function(object, ...) {
+            top.snpBMA(object, what="snps", ...) })
+
+#' @rdname top.snps-methods
+#' @aliases top.snps,snpBMAlist-method
+setMethod("top.snps",
+          signature=c(object="snpBMAlist"),
+          function(object, ...) {
+            top.snpBMAlist(object, what="snps", ...) })
 
 
 
@@ -157,15 +185,20 @@ setMethod("[",
                 .Data=newX,
                 Y=x@Y,
                 family=x@family,
-                tags=newtags) })
+                tags=newtags,
+                covar=x@covar) })
 setMethod("[",
           signature=c(x="snpBMAdata", i="ANY", j="missing", drop="missing"),
           function(x, i) {
+            covar <- x@covar
+            if(nrow(covar))
+              covar <- covar[i,,drop=FALSE]
             new("snpBMAdata",
                 .Data=x@.Data[i,,drop=FALSE],
                 Y=x@Y[i],
                 family=x@family,
-                tags=x@tags) })
+                tags=x@tags,
+                covar=covar) })
  setMethod("[",
           signature=c(x="snpBMAstrat", i="missing", j="ANY", drop="missing"),
           function(x, j) {
@@ -177,23 +210,29 @@ setMethod("[",
                 Y=x@Y,
                 family=x@family,
                 tags=newtags,
+                covar=x@covar,
                 strata=x@strata) })
 setMethod("[",
           signature=c(x="snpBMAstrat", i="ANY", j="missing", drop="missing"),
           function(x, i) {
             newstrat=x@strata[i]
-            if(length(unique(newstrat))==1) {
+            covar <- x@covar
+            if(nrow(covar))
+              covar <- covar[i,,drop=FALSE]
+          if(length(unique(newstrat))==1) {
               new("snpBMAdata",
                   .Data=x@.Data[i,,drop=FALSE],
                   Y=x@Y[i],
                   family=x@family,
-                  tags=x@tags)
+                  tags=x@tags,
+                  covar=covar)
             } else {
               new("snpBMAstrat",
                   .Data=x@.Data[i,,drop=FALSE],
                   Y=x@Y[i],
                   family=x@family,
                   tags=x@tags,
+                  covar=covar,
                   strata=newstrat)
             } })
 

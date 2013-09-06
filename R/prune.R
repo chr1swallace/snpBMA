@@ -31,7 +31,10 @@ snps.prune.data <- function(data, snps) {
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
   tags <- data@tags
   tags <- tags[!(tags %in% snps)]
-  
-  make.data(data@.Data, data@Y,tags=tags, family=data@family,
-            strata=if(is(data,"snpBMAstrat")) { data@strata } else { NULL })
+  data <- data[,unique(tags)]
+  data@tags <- tags
+  return(data)    
+##   make.data(data@.Data, data@Y,tags=tags, family=data@family, covar=data@covar,
+##             strata=if(is(data,"snpBMAstrat")) { data@strata } else { NULL })
+
 }

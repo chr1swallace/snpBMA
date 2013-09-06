@@ -5,9 +5,9 @@
   bma.grow(data, bma)
 }
 \arguments{
-  \item{data}{}
+  \item{data}{object of class snpBMAdata}
 
-  \item{bma}{}
+  \item{bma}{object of class snpBMA}
 }
 \value{
   object of class snpBMA

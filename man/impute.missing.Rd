@@ -6,13 +6,18 @@
     numeric = FALSE, ...)
 }
 \arguments{
-  \item{X}{}
+  \item{X}{SnpMatrix object}
 
-  \item{bp}{}
+  \item{bp}{optional vector of base pair positions, length
+  == number of SNPs}
 
-  \item{strata}{}
+  \item{strata}{optional vector, length == number of
+  samples, as.factor(strata) defines distinct strata of
+  samples, eg by geography}
 
-  \item{numeric}{}
+  \item{numeric}{default FALSE}
+
+  \item{...}{arguments passed on to \code{impute.snps}}
 }
 \value{
   matrix, either numeric (if numeric=TRUE) or SnpMatrix (if

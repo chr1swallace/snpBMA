@@ -63,8 +63,10 @@ outer.models <- function(x,y=NULL) {
 }
 ##' Internal function, null model matrix
 ##'
+##' Either snps or nsnps need to be supplied, not both.  
 ##' @title null.model
 ##' @param snps character vector of snp names
+##' @param nsnps number of SNPs, defaults to length(snps)
 ##' @return Matrix, nrow=0, ncol=length(snps), colnames=snps
 ##' @author Chris Wallace
 null.model <- function(snps=NULL,nsnps=length(snps)) {
@@ -223,22 +225,25 @@ models.prune <- function(parents, children, ...) {
 }
 ##' mcomp.detail, internal function
 ##'
+##' The prior odds are used, together with Bayes Factors, to determine posterior odds on which basis a subset of child models are returned
 ##' @title mcomp.detail
-##' @param m.parent 
-##' @param m.child 
-##' @param bf.parent 
-##' @param bf.child 
-##' @param ntarget 
-##' @param n.child 
-##' @param prior.parents 
-##' @param prior.children 
-##' @param what 
-##' @param pp.fold 
-##' @param quiet 
-##' @return object of class dropModels, or an index vector of which
-##' rows of supplied m.child should be dropped
+##' @param m.parent parent model matrix
+##' @param m.child child model matrix
+##' @param bf.parent BF matrix for parent models
+##' @param bf.child BF matrix for child models
+##' @param ntarget number of SNPs in parent models
+##' @param n.child number of SNPs in child models
+##' @param prior.parents prior for parent models
+##' @param prior.children prior for child models, 
+##' @param what "drop" or "keep"
+##' @param pp.fold the minimum posterior odds for a child model to be returned
+##' @param quiet default FALSE, if TRUE, supress progress messages.
+##' @return object of class dropModels defining models to drop (if
+##' what=="drop"), or an index vector of which rows of supplied
+##' m.child should be kept or kept (if what=="keep")
 ##' @author Chris Wallace
-mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget, n.child, prior.parents, prior.children, what, pp.fold=10, quiet=FALSE) {
+mcomp.detail <- function(m.parent, m.child, bf.parent, bf.child, ntarget,
+                         n.child, prior.parents, prior.children, what, pp.fold=10, quiet=FALSE) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
 
@@ -302,8 +307,8 @@ mdrop <- function(models, drop, quiet=FALSE) {
 ##'
 ##' Internal function
 ##' @title models.group.collapse
-##' @param models 
-##' @param groups 
+##' @param models model matrix
+##' @param groups list, each element of which is a character vector listing SNPs in that group
 ##' @return A dgCMatrix, with ncol==length(groups), and entry 1 if a SNP from that group is in the model.  Returns the input matrix in the case groups has zero length.
 ##' @author Chris Wallace
 models.group.collapse <- function(models, groups) {
@@ -338,18 +343,42 @@ mexpand <- function(bma, groups) {
   models <- bma@models
   if(!all(names(groups) %in% colnames(models)))
     stop("All group index SNPs need to be in existing models\n")
+  newmodels <- NULL
   for(index.snp in names(groups)) {
     i <- which(models[,index.snp]==1)
+    if(!length(i)) # nothing to expand
+      next
     j <- which(colnames(models)==index.snp)
-    msub <- models[i, -j]
-    mkeep <- models[-i, -j]
-    msub <- outer.models(models[i, -j, drop=FALSE],
-                   make.models.single(groups[[index.snp]], n.use=1, quiet=TRUE))
-    mkeep <- cbind2(models[-i, -j, drop=FALSE], Matrix(0, nrow(models)-length(i), length(groups[[index.snp]]),
-                                          dimnames=list(NULL,groups[[index.snp]])))
-    models <- rbind2(msub, mkeep)
+    if(!length(j)) # nothing to expand
+      next
+    newsnps <- setdiff(groups[[index.snp]],index.snp)
+    if(!length(newsnps)) # nothing to expand
+      next
+
+    mexp <- function(m) {
+      cbind2(m, Matrix(0,nrow(m),length(newsnps),dimnames=list(NULL,newsnps)))
+    }
+
+    ## expand existing models with empty entries for new snps
+    msub <- msub0 <- models[i,,drop=FALSE]
+    mkeep <- models[-i,,drop=FALSE]
+    msub <- mexp(msub)
+    mkeep <- mexp(mkeep)
+    models <- Matrix(0,nrow(models),ncol(msub),dimnames=list(NULL,c(colnames(models),newsnps)))
+    models[i,,drop=FALSE] <- msub
+    models[-i,,drop=FALSE] <- mkeep
+      
+    ## add new models
+    msub0[,j] <- 0
+    msub2 <- outer.models(msub0,
+                          make.models.single(newsnps, n.use=1, quiet=TRUE))
+    if(is.null(newmodels)) {
+      newmodels <- msub2
+    } else {
+      newmodels <- rbind2(mexp(newmodels),msub2)
+    }
   }
-  return(models)
+  return(list(models=models,newmodels=newmodels))
 }
 
 mgrow <- function(bma, quiet=FALSE) {
@@ -376,7 +405,7 @@ mgrow <- function(bma, quiet=FALSE) {
   ##  })
 
 ##  system.time({
-   ## prune1: SNPs should only be counted once
+  ## prune1: SNPs should only be counted once
   nzero <- summary(m)
   x2 <- which(nzero[,"x"]==2)
   if(length(x2)) {
@@ -386,13 +415,19 @@ mgrow <- function(bma, quiet=FALSE) {
 
   ## prune 2: multiple paths to each model, keep unique
   rows.split <- split( nzero[,"j"], nzero[,"i"] )
-  rows.keep <- which(!duplicated(rows.split))
+
+  ## prune 3: require all parent models to be included
+  patterns <- unlist(lapply(rows.split,paste,collapse=":"))
+  tt <- table(patterns)
+  rows.keep <- which(!duplicated(rows.split) & patterns %in% names(tt)[tt==(bma@nsnps+1)])
+  if(!length(rows.keep))
+    return(NULL)
   m2 <- m[ as.numeric(names(rows.split)[rows.keep]), ]
   
-  ## prune 3: max rs per group==1
-  if(length(groups)) {
+  ## prune 4: max rs per group==1
+  if(length(groups.use)) {
     rows.keep <- rep(TRUE,nrow(m2))
-    for(g in groups) { ## UNTESTED!
+    for(g in groups.use) { ## UNTESTED!
       if(length(g)>1) {
         mg <- m2[,g]
         rs <- rowSums(mg)
@@ -401,6 +436,8 @@ mgrow <- function(bma, quiet=FALSE) {
     }
     m2 <- m2[ rows.keep, ]
   }
+  if(!nrow(m2))
+    return(NULL)
 
   if(length(snps.exclude))
     m2 <- models.add.excluded(m2, snps.exclude)

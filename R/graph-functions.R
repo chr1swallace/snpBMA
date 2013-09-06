@@ -58,11 +58,11 @@ within.graph <- function(models, groups, name, target) {
   g.child <- set.edge.attribute(g.child, "LD", value=TRUE)
   return(g.child)
 }
-##' Make a character vector naming models uniquely according to the SNPs included
+##' Internal: make a character vector naming models uniquely according to the SNPs included
 ##' 
 ##' @title model.names
 ##' @param models model matrix
-##' @param num if TRUE (default), return numerics, otherwise return SNP names
+##' @param snps optional, if present, restrict by snps
 ##' @return character vector of length nrow(models)
 ##' @author Chris Wallace
 model.names <- function(models,snps=NULL) {

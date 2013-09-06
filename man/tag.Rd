@@ -5,9 +5,11 @@
   tag(X, tag.threshold = 0.99, snps = NULL, samples = NULL)
 }
 \arguments{
-  \item{snps}{colnames of the SnpMatrix object to be used}
+  \item{X}{SnpMatrix object}
 
   \item{tag.threshold}{threshold to cut tree, default=0.99}
+
+  \item{snps}{colnames of the SnpMatrix object to be used}
 
   \item{samples}{optional, subset of samples to use}
 }

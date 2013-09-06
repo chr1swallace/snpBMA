@@ -2,45 +2,99 @@
 ##'
 ##' @title snpBMA
 ##' @param object Object of class snpBMA
-##' @param nmodels number of models to show
+##' @inheritParams top.snpBMAlist
 ##' @return matrix of top models and their Bayes Factors
 ##' @author Chris Wallace
-top.snpBMA <- function(object,nmodels=6L, keep.snps=FALSE) {
-  if(is.na(nmodels) || nmodels>nrow(object@bf))
-    nmodels <- nrow(object@bf)
-  o <- head(order(object@bf[,2,drop=FALSE],decreasing=TRUE),nmodels)
-  tm <- object@models[o,,drop=FALSE]
-  if(!keep.snps) {
-    col.drop <- which(apply(tm,2,sum)==0)
+top.snpBMA <- function(object,nmodels=6L, keep.snps=FALSE, what="models") {
+##   if(what=="snps") {
+##     ## convert to bf for snps, assume priors all equal
+##     bf <- snp.summary(object, do.order=FALSE)
+##     tm <- as(rownames(bf),"matrix")
+##   } else {
+    bf <- object@bf
+    tm <- object@models
+##   }
+  if(is.na(nmodels) || nmodels>nrow(bf))
+    nmodels <- nrow(bf)
+  o <- head(order(bf[,2,drop=FALSE],decreasing=TRUE),nmodels)
+  tm <- tm[o,,drop=FALSE]
+  if(what=="models" & !keep.snps) {
+    col.drop <- which(colSums(tm)==0)
     if(length(col.drop))
       tm <- tm[,-col.drop,drop=FALSE]
   }
-  bf <- object@bf[o,,drop=FALSE]
+  bf <- bf[o,,drop=FALSE]
   colnames(bf) <- paste("twologB10-phi",1:ncol(bf),sep="")
-  cbind(as(tm,"matrix"),bf)
+  if(what=="snps") {
+    rownames(bf) <- tm[,1]
+    return(bf)
+  }
+  return(cbind(as(tm,"matrix"),as(bf,"matrix")))
 }
-
-post.snpBMA <- function(object, prior) {
+##' post.snpBMA
+##'
+##' Calculate posterior probs given BF and prior odds
+##' @title Internal, post.snpBMA
+##' @param object Object of class snpBMA
+##' @param priors prior odds for models containing a fixed number of SNPs
+##' @param snpsep character string used to separate SNP names when naming models
+##' @return pp matrix
+##' @author Chris Wallace
+post.snpBMA <- function(object, priors, snpsep="/") {
   onames <- model.names(object@models)
   obf <- object@bf
   snps.all <- snps0(object)
   snps <- lapply(strsplit(onames, "-"), function(x) snps.all[x])
-  rownames(obf) <- lapply(snps, paste, collapse="-")
-  pp <- exp(obf/2) * prior
+  pp <- exp(obf/2) * priors
   colnames(pp) <- paste("PP_phi=phi.", 1:ncol(pp), sep="")
-  return(pp)
+  return(new("modelSummary",.Data=pp, snps=snps, snpsep=snpsep))
 }
 
-##' Show top models in a snpBMA object
+##' Internal function, logsum
 ##'
-##' @title snpBMA
+##' This function calculates the log of the sum of the exponentiated
+##' logs taking out the max, i.e. insuring that the sum is not Inf
+##' @title logsum (copied from coloc package)
+##' @param x numeric vector
+##' @return max(x) + log(sum(exp(x - max(x))))
+##' @author Claudia Giambartolomei
+logsum <- function(x) {
+  my.max <- max(x)                              ##take out the maximum value in log form
+  my.res <- my.max + log(sum(exp(x - my.max ))) 
+  return(my.res)
+}
+##' Internal function, logdiff
+##'
+##' This function calculates the log of the difference of the exponentiated
+##' logs taking out the max, i.e. insuring that the difference is not negative
+##' @title logdiff (copied from coloc package)
+##' @param x numeric
+##' @param y numeric
+##' @return max(x) + log(exp(x - max(x,y)) - exp(y-max(x,y)))
+##' @author Chris Wallace
+logdiff <- function(x,y) {
+  my.max <- pmax(x,y)                              ##take out the maximum value in log form
+  my.res <- my.max + log(exp(x - my.max ) - exp(y-my.max))
+  return(my.res)
+}
+
+
+##' Show top models in a snpBMAlist object
+##'
+##' @title top.snpBMAlist
 ##' @param object Object of class snpBMAlist
+##' @param priors vector of priors from which prior odds for models containing a fixed number of SNPs may be derived
 ##' @param nmodels number of models to show
+##' @param min.pp ("minimim posterior probability") optional, if present, limit to models with psterior probabilities > min.pp
+##' @param min.cpp ("minimum cumulative posterior probability") optional, if present, limit to the best models which together account for at least min.cpp of the posterior probability
+##' @param what \code{models} or \code{snps}, indicating whether to output the top models or SNPs
+##' @param ... additional arguments passed to \link{post.snpBMA}
 ##' @return matrix of top models and their Bayes Factors
 ##' @author Chris Wallace
-top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL) {
+top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL, what="models", groups=NULL, ...) {
   n <- length(object)
-  priors2 <- priors[1:n]
+
+##   priors2 <- priors[1:n]
   ## if(is.null(prior.odds) & is.null(prior.prob))
   ##   stop("Must specify prior odds OR prior probs")
   ## if(!is.null(prior.prob)) {
@@ -49,23 +103,51 @@ top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL) 
   ##   priors2 <- prior.odds
   ## }
   pp <- lapply(1:n, function(i) {
-    post.snpBMA(object[[i]], priors2[i])
+    post.snpBMA(object=object[[i]], priors=priors[i], ...)
   })
-  cn <- colnames(pp[[1]])
-  pp <- do.call("rbind",pp)
+  if(what=="snps") {
+    r <- unlist(lapply(pp,nrow))
+  }
+  pp <- do.call("stack",pp)
+  snps <- pp@snps
+  snpsep <- pp@snpsep
   pp <- t(t(pp) / colSums(pp))
-  pp <- pp[order(pp[,2], decreasing=TRUE),]
-  colnames(pp) <- cn
-
+   if(what=="snps") {
+    snps <- unique(unlist(lapply(object, function(o) o@snps)))
+    models <- Matrix(0,sum(r),length(snps),dimnames=list(NULL,snps))
+    rc <- c(0,cumsum(r))
+    for(i in 1:n) {
+      r <- (rc[i]+1):rc[i+1]
+      m <- object[[i]]@models
+      models[r,colnames(m)] <- m
+    }
+    if(!is.null(groups)) {
+      newmodels <- Matrix(0,nrow(models),length(groups),dimnames=list(NULL,names(groups)))
+      for(g in names(groups))
+        newmodels[,g] <- rowSums(models[,groups[[g]],drop=FALSE])
+      models <- newmodels
+    }
+    pp <- Matrix::t(models) %*% pp
+    snps <- colnames(models)    
+    pp <- new("modelSummary", .Data=pp, snps=as.list(snps), snpsep=snpsep)
+ }
+  o <- order(pp[,2],decreasing=TRUE)
+  pp <- pp[o,,drop=FALSE]
+ 
+  ## return values
   if(!is.null(min.pp))
-      return(pp[ pp[,2]>=min.pp, ])
+    return(pp[ pp[,2]>=min.pp, ])
   if(!is.null(min.cpp)) {
-      cpp <- cumsum(pp[,2])
-      wh <- which(cpp>=min.cpp)[1]
-      return(pp[ 1:wh, ])
+    cpp <- cumsum(pp[,2])
+    wh <- which(cpp>=min.cpp)[1]
+    return(pp[ 1:wh, ])
   }      
-  head(x=pp, n=nmodels)
+  if(is.na(nmodels) || nmodels==0)
+    return(pp)
+  return(pp[1:nmodels,])
 }
+
+
 ##' Extract SNPs from top.models
 ##'
 ##' @title top.snps
@@ -74,14 +156,14 @@ top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL) 
 ##' @return character vector of SNP names
 ##' @author Chris Wallace
 ##' @export
-top.snps <- function(object, ...) {
-  ts <- top.models(object, ...)
-  unique(unlist(strsplit(rownames(ts), "-")))
+top.snps <- function(object, snpsep="/", ...) {
+  ts <- top.models(object, snpsep=snpsep, ...)
+  unique(unlist(strsplit(rownames(ts), snpsep)))
 }
 
 ##' Summary Bayes Factors for each SNP
 ##'
-##' The summary Bayes Factor is the mean of the Bayes Factor for all
+##' The summary Bayes Factor is the sum of the Bayes Factor for all
 ##' models containing that SNP, which is valid if each model has equal
 ##' prior
 ##' @title Summary Bayes Factors for each SNP
@@ -91,11 +173,51 @@ top.snps <- function(object, ...) {
 ##' @author Chris Wallace
 ##' @export
 snp.summary <- function(object, do.order=TRUE) {
-  snp.bf <- Matrix::t(object@models) %*% object@bf / Matrix::colSums(object@models)
+  snp.bf <- Matrix::t(object@models) %*% object@bf
+  ## drop snps not in any models
+  rs <- rowSums(abs(snp.bf))
+  snp.bf <- snp.bf[rs>0,,drop=FALSE]
   if(do.order) 
     snp.bf <- snp.bf[ order(snp.bf[,2], decreasing=TRUE), ]
   colnames(snp.bf) <- paste("twologB10-phi",1:ncol(snp.bf),sep="")
   return(snp.bf)
+}
+
+nsnps.posterior <- function(object) {
+  nsnps <- sapply(object@snps,length)
+  maxsnps <- max(nsnps)
+  t(sapply(1:maxsnps, function(i) {
+    wh <- which(nsnps==i)
+    colSums(object[wh,,drop=FALSE])
+  })) ## posterior distribution on number of SNPs  
+}
+
+nsnps.expected <- function(object) {
+  nsnps <- sapply(object@snps,length)
+  t(nsnps) %*% object ## expected number of snps
+}
+
+snps.pp <- function(object, n=NULL, rescale=FALSE, byn=FALSE) {
+  nsnps <- sapply(object@snps,length)
+  if(byn && is.null(n)) { ## split by nsnps, do all of them
+    maxsnps <- max(nsnps)
+    PPisnp <- lapply(1:maxsnps, function(i) cbind(nsnps=i,as(snps.pp(object,i,rescale=rescale),"matrix")))
+    return(do.call("rbind",PPisnp))
+  }
+  if(!is.null(n)) { ## split, do subset of snps
+    wh <- which(nsnps==n)
+    object <- object[wh,]
+    nsnps <- nsnps[wh]
+  }
+  snps <- unique(unlist(object@snps))
+  models <- Matrix(0,nrow(object),length(snps),dimnames=list(1:nrow(object),snps))
+  index <- cbind(rep(1:length(nsnps), times=nsnps),
+                 match(unlist(object@snps),colnames(models)))
+  models[index] <- 1
+  pp <- object@.Data
+  if(rescale)
+    pp <- t(t(pp)/colSums(pp))
+  return(t(models) %*% pp)
 }
 
 snp.subset <- function(object,model.str, snp,value) {

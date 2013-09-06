@@ -9,16 +9,31 @@ setClass("Models",
              stop("Each model matrix should contain models with a fixed colSums()")
          })
 
+## Model summary matrix
+setClass("modelSummary",
+         representation(snps="list",
+                        snpsep="character"),
+         contains="matrix",
+         validity=function(object) {
+           if(nrow(object@.Data)!=length(object@snps))             
+             stop("snps list must index rows of .Data matrix")
+           if(length(object@snpsep)!=1)
+             stop("snpsep must be a single character")
+         })
+
 ################################################################################
-## snpBMA, snpBMAdata
+## snpBMAdata
 setClass("snpBMAdata",
          representation(Y="numeric",
                         family="character",
-                        tags="character"),
+                        tags="character",
+                        covar="matrix"),
          contains="matrix",
          validity=function(object) {
            if(length(object@Y) != nrow(object@.Data))
              stop("phenotype vector Y must have length == nrow(X)")
+           if(nrow(object@covar) > 0 && nrow(object@covar) != length(object@Y))
+             stop("covar variables must have length == nrow(X)")
          })
 
 setClass("snpBMAstrat",
@@ -31,6 +46,8 @@ setClass("snpBMAstrat",
              stop("strata vector must have length == nrow(X)")
          })
 
+################################################################################
+## snpBMA
 setClass("snpBMA",
          representation(nmodels="numeric",
                         snps="character",

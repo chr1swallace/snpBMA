@@ -5,7 +5,7 @@
   collate.bma(results)
 }
 \arguments{
-  \item{x}{a list of output from \code{\link{glib}}}
+  \item{results}{a list of output from \code{\link{glib}}}
 }
 \value{
   an object similar to that returned by a single call of
@@ -13,8 +13,8 @@
   correct
 }
 \description{
-  Given a list of BMA results from glib, combine into a
-  single object
+  Internal: given a list of BMA results from glib, combine
+  into a single object
 }
 \details{
   With the multicore package, it can be useful to farm out

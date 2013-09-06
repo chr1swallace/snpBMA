@@ -1,6 +1,7 @@
 \docType{methods}
 \name{show}
 \alias{show}
+\alias{show,modelSummary-method}
 \alias{show,snpBMA-method}
 \alias{show,snpBMAdata-method}
 \alias{show,snpBMAlist-method}

@@ -1,10 +1,11 @@
 ##' Uses snpStats' snp.imputation function
 ##'
 ##' @title Fill in missing values in SnpMatrix object
-##' @param X 
-##' @param bp 
-##' @param strata 
-##' @param numeric 
+##' @param X SnpMatrix object
+##' @param bp optional vector of base pair positions, length == number of SNPs
+##' @param strata optional vector, length == number of samples, as.factor(strata) defines distinct strata of samples, eg by geography
+##' @param numeric default FALSE
+##' @param ... arguments passed on to \code{impute.snps}
 ##' @return matrix, either numeric (if numeric=TRUE) or SnpMatrix (if numeric=FALSE)
 ##' @author Chris Wallace
 ##' @export 

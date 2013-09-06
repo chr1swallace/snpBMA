@@ -21,15 +21,11 @@ l.c <- function(L,d1,d2) {
 
 
 
-group.tags <- function(tags, keep) {
-  groups <- tags[ names(tags) %in% keep ]
-  groups <- split(names(groups), groups)
-}
-##' Given a list of BMA results from glib, combine into a single object
+##' Internal: given a list of BMA results from glib, combine into a single object
 ##'
 ##' With the multicore package, it can be useful to farm out BMA jobs via mclapply
 ##' @title Collate a list of glib output
-##' @param x a list of output from \code{\link{glib}}
+##' @param results a list of output from \code{\link{glib}}
 ##' @return an object similar to that returned by a single call of \code{glib}.  object$prior and object$posterior are _NOT_ correct
 ##' @author Chris Wallace
 collate.bma <- function(results) {
@@ -59,29 +55,36 @@ collate.bma <- function(results) {
 ##' @param tags a named character vector created by the
 ##' \code{\link{tag}()} function
 ##' @param family character string, "binomial" or "gaussian", passed to glib
+##' @param strata optional, if present, levels of \code{factor(strata)} define distinct groups of samples which should be analysed separately
 ##' @return a list with entries X and Y
 ##' @author Chris Wallace
 ##' @export
-make.data <- function(X,Y,tags,family="binomial",strata=NULL) {
+make.data <- function(X,Y,tags,family="binomial",strata=NULL, covar=NULL, data=NULL) {
   tags.names <- unique(tags)
   X <- X[,tags.names]
-  if(is(X,"SnpMatrix") || is(X,"XSnpMatrix"
-))
+  if(is(X,"SnpMatrix") || is(X,"XSnpMatrix"))
     X <- as(X,"numeric")
   keep <- complete.cases(X)
   cat("Keeping",sum(keep),"of",nrow(X),"samples and",ncol(X),"SNPs\n")
+  if(is.null(covar)) {
+    covar <- matrix(nrow=0,ncol=0)
+  } else {
+    covar <- model.matrix(as.formula(covar), data=data)[keep,-1,drop=FALSE]
+  }  
   if(is.null(strata)) {
-  return(new("snpBMAdata",
-             .Data=X[keep,],
-             Y=Y[keep],
-             tags=tags,
-             family=family))
-} else {
+    return(new("snpBMAdata",
+               .Data=X[keep,,drop=FALSE],
+               Y=Y[keep],
+               tags=tags,
+               family=family,
+               covar=covar))
+  } else {
     return(new("snpBMAstrat",
-             .Data=X[keep,],
-             Y=Y[keep],
-             tags=tags,
-             family=family,
+               .Data=X[keep,,drop=FALSE],
+               Y=Y[keep],
+               tags=tags,
+               family=family,
+               covar=covar,
                strata=factor(strata[keep])))
   }
 }
@@ -104,8 +107,27 @@ my.glib <- function(data, models) {
   }
 
   ## if(is.null(getOption("mc.cores"))) {
-    cat("Evaluating",nrow(models),"models\n")
-    results <-   glib(data@.Data, data@Y, error=error, link=link, models=models, glimest=FALSE, post.bymodel=FALSE)
+  cat("Evaluating",nrow(models),"models\n")
+  d <- data@.Data
+  M <- models
+  if(nrow(data@covar)) {
+    M <- rbind2(Matrix(0,nrow=1,ncol=ncol(M)),M) # new null model
+    M <- cbind2(Matrix(1,nrow=nrow(M),ncol=ncol(data@covar)), # include every covar in every model
+                M)
+    d <- cbind(data@covar,d)
+  }
+
+  results <-   glib(d, data@Y, error=error, link=link, models=M, glimest=FALSE, post.bymodel=FALSE)
+
+  if(nrow(data@covar)) { # change to alternative null
+    bf <- t(results$bf$twologB10)
+    print(dim(bf))
+    bf <- bf - bf[,1]
+    return(list(models=models,bf=t(bf[,-1]),prior=results$prior[-1]))
+  } else {
+    return(list(models=models,bf=results$bf$twologB10,prior=results$prior))
+  }
+  
   ## } else {
   ##   cat("Evaluating",nrow(models),"models","over",getOption("mc.cores",1),"cores.\n")
   ##   njobs <- min(max(options()$mc.cores, 1), nrow(models)) # don't need more than 1 core per model
@@ -119,7 +141,6 @@ my.glib <- function(data, models) {
   ##   bf <- do.call("rbind",inner.results)
   ##   models <- models[ unlist(index.split) , ]
   ## }  
-  return(list(models=models,bf=results$bf$twologB10,prior=results$prior))
 }
 
 ##' Fit possible models with a fixed number of SNPs in each model
@@ -173,24 +194,39 @@ bma.grow <- function(data, bma) {
   if(nsnps<1 || nsnps>ncol(data@.Data))
     stop("bma already contains maximum SNPs")
   models <- mgrow(bma)
-  if(!nrow(models))
+  if(is.null(models) || !nrow(models))
       return(NULL)
 
   bma.run(data=data, models=models, nsnps=nsnps, groups=bma@groups)
 
 }
-
+##' Expand SNP models to include selected tagged SNPs
+##'
+##' @title bma.expand
+##' @param data  object of class snpBMAdata
+##' @param bma  object of class snpBMA
+##' @param groups named list,  with names equal to all SNPs to be included and 
+##' @return  object of class snpBMA
+##' @author Chris Wallace
 bma.expand <- function(data, bma, groups) {
 
     if(is.null(bma))
         return(NULL)
     
-  models <- mexpand(bma, groups[ intersect(names(groups),bma@snps) ])
+  rval <- mexpand(bma, groups[ intersect(names(groups),bma@snps) ])
+    models <- rval$models
+    newmodels <- rval$newmodels
 
-  bma.run(data=data[,colnames(models)],
-          models=models,
-          nsnps=bma@nsnps,
-          groups=groups)
+    cat("Expanding",nrow(models),"models by",nrow(newmodels),"additional models.\n")
+    
+    newbma <- bma.run(data=data[,colnames(newmodels)],
+                      models=newmodels,
+                      nsnps=bma@nsnps,
+                      groups=groups)
+
+    newbma@models <- rbind2(models,newbma@models)
+    newbma@bf <- rbind(bma@bf,newbma@bf)    
+    return(newbma)
 
 }
 
@@ -211,7 +247,7 @@ bma.run <- function(data, models, nsnps, groups) {
     return(bma)
   }
   
-  x <- my.glib(data, models)
+  x <- my.glib(data=data, models=models)
   return(new("snpBMA",
                nsnps=nsnps,
                nmodels=max.models(snps=unique(data@tags), n.use=nsnps, groups=groups),
@@ -337,6 +373,11 @@ index.groups <- function(X, index.snps, r2.threshold=0.9, snps=NULL, samples=NUL
 }
 
 ##' create groups of SNPs with LD > r2.threshold with index.snps
+##' @param X SnpMatrix
+##' @param r2.threshold r2 threshold above which SNPs should be tagged, default 0.9
+##' @param snps optional, if present, limit to these SNPs
+##' @param samples optional, if present, limit to these samples
+##' @param do.plot default FALSE, if TRUE plot the hclust object used for the clustering
 r2.groups <- function(X,r2.threshold=0.9, snps=NULL, samples=NULL, do.plot=FALSE) {
   if(!is.null(snps) || !is.null(samples))
     X <- X[samples,snps]

@@ -85,24 +85,59 @@ myr2 <- function(X) {
 ##'
 ##' Uses complete linkage and the \code{\link{hclust}} function to define clusters, then cuts the tree at 1-tag.threshold
 ##' @title tag
-##' @param snps colnames of the SnpMatrix object to be used
+##' @param X SnpMatrix object
 ##' @param tag.threshold threshold to cut tree, default=0.99
+##' @param snps colnames of the SnpMatrix object to be used
 ##' @param samples optional, subset of samples to use
 ##' @return character vector, names are \code{snps}, values are the tag for each SNP
 ##' @author Chris Wallace
 ##' @export
-tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL) {
+tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL, strata=NULL) {
   if(!is.null(snps) || !is.null(samples))
     X <- X[samples,snps]
+  if(!is.null(strata)) {
+    strata <- factor(strata)
+    tags <- lapply(levels(strata), function(l) {
+      wh <- which(strata==l)
+      if(!length(wh))
+        return(NULL)
+      return(tag(X[wh,], tag.threshold=tag.threshold))
+    })
+    return(tags)
+  }
+    
   r2 <- myr2(X)
-   D <- as.dist(1-r2)
-   hc <- hclust(D, method="complete")
-   clusters <- cutree(hc, h=1-tag.threshold)
-   snps.use <- names(clusters)[!duplicated(clusters)]
-   r2.use <- r2[snps.use, colnames(X), drop=FALSE]
-   tags <- rownames(r2.use)[apply(r2.use,2,which.max)]
-   names(tags) <- colnames(r2.use)
-   return(tags)
+  D <- as.dist(1-r2)
+  hc <- hclust(D, method="complete")
+  clusters <- cutree(hc, h=1-tag.threshold)
+  
+##   if(!is.null(strata)) {
+##     strata <- factor(strata)
+##     ## merge clusters for stratified cohorts
+##       for(i in 1:length(levels(strata))) {
+##         wh <- which(strata==levels(strata)[[i]])
+##         if(!length(wh))
+##           next
+##         r2.this <- myr2(X[wh,])
+##         D <- as.dist(1-r2.this)
+##         hc <- hclust(D, method="complete")
+##         y <- cutree(hc, h=1-tag.threshold)
+##         for(xi in unique(clusters)) {
+##           wh <- which(clusters==xi)
+##           if(!length(wh))
+##             next
+##           yi <- y[wh]
+##           if(any(y[-wh] %in% yi))
+##             clusters[ clusters==xi | y %in% yi ] <- xi
+##         }
+##       }
+##     }
+    
+  snps.use <- names(clusters)[!duplicated(clusters)]
+  r2.use <- r2[snps.use, colnames(X), drop=FALSE]
+  tags <- rownames(r2.use)[apply(r2.use,2,which.max)]
+  names(tags) <- colnames(r2.use)
+  return(tags)
 }
 
 group.tags <- function(tags, keep) {

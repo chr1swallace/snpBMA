@@ -7,15 +7,14 @@
 \arguments{
   \item{models}{model matrix}
 
-  \item{num}{if TRUE (default), return numerics, otherwise
-  return SNP names}
+  \item{snps}{optional, if present, restrict by snps}
 }
 \value{
   character vector of length nrow(models)
 }
 \description{
-  Make a character vector naming models uniquely according
-  to the SNPs included
+  Internal: make a character vector naming models uniquely
+  according to the SNPs included
 }
 \author{
   Chris Wallace

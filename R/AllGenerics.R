@@ -15,12 +15,12 @@ setGeneric("snps0", function(object){ standardGeneric ("snps0") })
 
 setGeneric("stackModels", function(object) { standardGeneric ("stackModels") })
 
-##' Stack snpBMA objects together
+##' Stack objects together
 ##'
 ##' @title stack-methods
-##' @param object object of class snpBMA
-##' @param ... more objects of class snpBMA
-##' @return object of class snpBMAlist
+##' @param object object of class snpBMA or modelSummary
+##' @param ... more objects of the same class
+##' @return object of class snpBMAlist or modelSummary
 ##' @author Chris Wallace
 ##' @export
 ##' @docType methods

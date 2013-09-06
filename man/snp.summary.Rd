@@ -20,7 +20,7 @@
   Summary Bayes Factors for each SNP
 }
 \details{
-  The summary Bayes Factor is the mean of the Bayes Factor
+  The summary Bayes Factor is the sum of the Bayes Factor
   for all models containing that SNP, which is valid if
   each model has equal prior
 }

@@ -5,9 +5,10 @@
   models.group.collapse(models, groups)
 }
 \arguments{
-  \item{models}{}
+  \item{models}{model matrix}
 
-  \item{groups}{}
+  \item{groups}{list, each element of which is a character
+  vector listing SNPs in that group}
 }
 \value{
   A dgCMatrix, with ncol==length(groups), and entry 1 if a

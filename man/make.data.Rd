@@ -2,7 +2,8 @@
 \alias{make.data}
 \title{make.data}
 \usage{
-  make.data(X, Y, tags, family = "binomial", strata = NULL)
+  make.data(X, Y, tags, family = "binomial", strata = NULL,
+    covar = NULL, data = NULL)
 }
 \arguments{
   \item{X}{matrix of explanatory variables, either a
@@ -17,6 +18,10 @@
 
   \item{family}{character string, "binomial" or "gaussian",
   passed to glib}
+
+  \item{strata}{optional, if present, levels of
+  \code{factor(strata)} define distinct groups of samples
+  which should be analysed separately}
 }
 \value{
   a list with entries X and Y

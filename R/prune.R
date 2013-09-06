@@ -1,22 +1,26 @@
-##' Compare potential parent and child models according to BF
-##'
-##' Returns models whose children SHOULD be visited
-##' @title mcomp
-##' @param bma snpBMA object
-##' @param snps character vector of snps to drop
-##' @return a snpBMA object with a subset of models containing only SNPs not included in \code{snps}
-##' @author Chris Wallace
-snps.prune.models <- function(bma, snps) {
-  if(!all(snps %in% bma.1@snps))
-    stop("SNPs to drop must be in BMA object\n")
+## ##' Compare potential parent and child models according to BF
+## ##'
+## ##' Returns models whose children SHOULD be visited
+## ##' @title mcomp
+## ##' @param bma snpBMA object
+## ##' @param snps character vector of snps to drop
+## ##' @return a snpBMA object with a subset of models containing only SNPs not included in \code{snps}
+## ##' @author Chris Wallace
+## snps.prune.models <- function(bma, snps) {
+##   ## stratified
+##   if(is(data,"snpBMAstrat"))
+##     return(new("snpBMAstrat", .Data = lapply(data@.Data, snps.prune.data, snps)))
 
-  models <- bma@models
-  models.drop <- which(rowSums(models[,snps]) > 0)
-  if(length(models.drop))
-    return(bma[-models.drop, ])
+##   if(!all(snps %in% bma@snps))
+##     stop("SNPs to drop must be in BMA object\n")
 
-  return(bma)
-}
+##   models <- bma@models
+##   models.drop <- which(rowSums(models[,snps]) > 0)
+##   if(length(models.drop))
+##     return(bma[-models.drop, ])
+
+##   return(bma)
+## }
  
 ##' Compare potential parent and child models according to BF
 ##'

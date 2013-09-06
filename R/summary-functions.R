@@ -173,7 +173,23 @@ top.snps <- function(object, snpsep="/", ...) {
 ##' @author Chris Wallace
 ##' @export
 snp.summary <- function(object, do.order=TRUE) {
+  if(is(object,"snpBMAstrat")) {
+    bf.list <- lapply(object@.Data, snp.summary, do.order=FALSE)
+    snp.bf <- bf.list[[1]]
+    for(i in 2:length(bf.list))
+      snp.bf <- snp.bf + bf.list[[i]]
+    if(do.order)
+      snp.bf <- snp.bf[ order(snp.bf[,2], decreasing=TRUE), ]
+    return(snp.bf)
+  }
   snp.bf <- Matrix::t(object@models) %*% object@bf
+  ## add in tags
+  toadd <- setdiff(names(object@tags),object@tags)
+  if(length(toadd)) {
+    bf.toadd <- snp.bf[ object@tags[toadd], ]
+    rownames(bf.toadd) <- toadd
+    snp.bf <- rbind(snp.bf, bf.toadd)
+  }
   ## drop snps not in any models
   rs <- rowSums(abs(snp.bf))
   snp.bf <- snp.bf[rs>0,,drop=FALSE]

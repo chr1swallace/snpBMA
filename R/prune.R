@@ -29,12 +29,20 @@ snps.prune.models <- function(bma, snps) {
 snps.prune.data <- function(data, snps) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
+
+  ## stratified
+  if(is(data,"snpBMAstrat"))
+    return(new("snpBMAstrat", .Data = lapply(data@.Data, snps.prune.data, snps)))
+
+  ## unstratified
   tags <- data@tags
   tags <- tags[!(tags %in% snps)]
   data <- data[,unique(tags)]
   data@tags <- tags
   return(data)    
-##   make.data(data@.Data, data@Y,tags=tags, family=data@family, covar=data@covar,
-##             strata=if(is(data,"snpBMAstrat")) { data@strata } else { NULL })
+}
 
+snps.prune.groups <- function(groups, snps) {
+   groups <- lapply(groups, setdiff, snps.drop)
+   groups[sapply(groups,length)>0]
 }

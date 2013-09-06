@@ -59,7 +59,20 @@ collate.bma <- function(results) {
 ##' @return a list with entries X and Y
 ##' @author Chris Wallace
 ##' @export
-make.data <- function(X,Y,tags,family="binomial",strata=NULL, covar=NULL, data=NULL) {
+make.data <- function(X,Y,tag.r2=0.99,family="binomial",strata=NULL, covar=NULL, data=NULL) {
+  if(!is.null(strata)) {
+    strata <- factor(strata)
+    L <- structure(vector("list",length(levels(strata))),
+                   names=levels(strata))
+    for(l in levels(strata)) {
+      i <- which(strata==l)
+      L[[l]] <- make.data(X=X[i,,drop=FALSE], Y=Y[i], tag.r2=tag.r2, family=family, covar=covar, data=data)
+    }
+    return(new("snpBMAstrat",.Data=L))
+  }
+
+  ## no strata
+  tags <- tag(X,tag.r2)
   tags.names <- unique(tags)
   X <- X[,tags.names]
   if(is(X,"SnpMatrix") || is(X,"XSnpMatrix"))
@@ -71,22 +84,12 @@ make.data <- function(X,Y,tags,family="binomial",strata=NULL, covar=NULL, data=N
   } else {
     covar <- model.matrix(as.formula(covar), data=data)[keep,-1,drop=FALSE]
   }  
-  if(is.null(strata)) {
-    return(new("snpBMAdata",
-               .Data=X[keep,,drop=FALSE],
-               Y=Y[keep],
-               tags=tags,
-               family=family,
-               covar=covar))
-  } else {
-    return(new("snpBMAstrat",
-               .Data=X[keep,,drop=FALSE],
-               Y=Y[keep],
-               tags=tags,
-               family=family,
-               covar=covar,
-               strata=factor(strata[keep])))
-  }
+  return(new("snpBMAdata",
+             .Data=X[keep,,drop=FALSE],
+             Y=Y[keep],
+             tags=tags,
+             family=family,
+             covar=covar))
 }
 
 
@@ -233,18 +236,9 @@ bma.expand <- function(data, bma, groups) {
 
 bma.run <- function(data, models, nsnps, groups) {
 
-  if(is(data, "snpBMAstrat") && length(unique(data@strata))>1) {
-    ## deal with strata
-    strata <- split(1:length(data@strata), data@strata)
+  if(is(data, "snpBMAstrat")) {
     cat("Stratum 1\t")
-    bma <-  bma.run(data[strata[[1]],], models, nsnps, groups)
-    for(i in 2:length(strata)) {
-      cat(i,"\t")
-      tmp <- bma.run(data[strata[[i]],], models, nsnps, groups)
-      bma@bf <- bma@bf + tmp@bf
-    }
-    cat("\n")
-    return(bma)
+    bma <-  lapply(data@.Data, bma.run, models, nsnps, groups)
   }
   
   x <- my.glib(data=data, models=models)

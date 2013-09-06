@@ -70,13 +70,7 @@ setMethod("show", signature="snpBMAdata",
 ##' @rdname show-methods
 ##' @aliases show,snpBMAstrat-method
 setMethod("show", signature="snpBMAstrat",
-          function(object) {
-            nsamp <- length(object@Y)
-            nsnp <- ncol(object@.Data)
-            nstrat <- length(unique(object@strata))
-            
-            cat(class(object),"object, with",object@family,"phenotypes.\n",nsamp,"individuals in",nstrat,"strata;",nsnp,"SNPs represented by",length(unique(object@tags)),"tags.\n")
-          })
+          function(object) lapply(object@.Data, show))
 
 ################################################################################
 
@@ -199,42 +193,42 @@ setMethod("[",
                 family=x@family,
                 tags=x@tags,
                 covar=covar) })
- setMethod("[",
-          signature=c(x="snpBMAstrat", i="missing", j="ANY", drop="missing"),
-          function(x, j) {
-            newX <- x@.Data[,j,drop=FALSE]
-            newsnps <- colnames(newX)
-            newtags <- x@tags[ x@tags %in% newsnps ]            
-            new("snpBMAstrat",
-                .Data=newX,
-                Y=x@Y,
-                family=x@family,
-                tags=newtags,
-                covar=x@covar,
-                strata=x@strata) })
-setMethod("[",
-          signature=c(x="snpBMAstrat", i="ANY", j="missing", drop="missing"),
-          function(x, i) {
-            newstrat=x@strata[i]
-            covar <- x@covar
-            if(nrow(covar))
-              covar <- covar[i,,drop=FALSE]
-          if(length(unique(newstrat))==1) {
-              new("snpBMAdata",
-                  .Data=x@.Data[i,,drop=FALSE],
-                  Y=x@Y[i],
-                  family=x@family,
-                  tags=x@tags,
-                  covar=covar)
-            } else {
-              new("snpBMAstrat",
-                  .Data=x@.Data[i,,drop=FALSE],
-                  Y=x@Y[i],
-                  family=x@family,
-                  tags=x@tags,
-                  covar=covar,
-                  strata=newstrat)
-            } })
+##  setMethod("[",
+##           signature=c(x="snpBMAstrat", i="missing", j="ANY", drop="missing"),
+##           function(x, j) {
+##             newX <- x@.Data[,j,drop=FALSE]
+##             newsnps <- colnames(newX)
+##             newtags <- x@tags[ x@tags %in% newsnps ]            
+##             new("snpBMAstrat",
+##                 .Data=newX,
+##                 Y=x@Y,
+##                 family=x@family,
+##                 tags=newtags,
+##                 covar=x@covar,
+##                 strata=x@strata) })
+## setMethod("[",
+##           signature=c(x="snpBMAstrat", i="ANY", j="missing", drop="missing"),
+##           function(x, i) {
+##             newstrat=x@strata[i]
+##             covar <- x@covar
+##             if(nrow(covar))
+##               covar <- covar[i,,drop=FALSE]
+##           if(length(unique(newstrat))==1) {
+##               new("snpBMAdata",
+##                   .Data=x@.Data[i,,drop=FALSE],
+##                   Y=x@Y[i],
+##                   family=x@family,
+##                   tags=x@tags,
+##                   covar=covar)
+##             } else {
+##               new("snpBMAstrat",
+##                   .Data=x@.Data[i,,drop=FALSE],
+##                   Y=x@Y[i],
+##                   family=x@family,
+##                   tags=x@tags,
+##                   covar=covar,
+##                   strata=newstrat)
+##             } })
 
 ################################################################################
 ## Models
@@ -327,12 +321,12 @@ setMethod("snps.prune",
       snps.prune.data(data=object, snps=snps)
     }
 )
-##' @rdname snps.prune-methods
-##' @aliases snps.prune,snpBMAstrat-method
-setMethod("snps.prune",
-    signature(object = "snpBMAstrat", snps = "character"),
-    function (object, snps, ...) 
-    {
-      snps.prune.data(data=object, snps=snps)
-    }
-)
+## ##' @rdname snps.prune-methods
+## ##' @aliases snps.prune,snpBMAstrat-method
+## setMethod("snps.prune",
+##     signature(object = "snpBMAstrat", snps = "character"),
+##     function (object, snps, ...) 
+##     {
+##       snps.prune.data(data=object, snps=snps)
+##     }
+## )

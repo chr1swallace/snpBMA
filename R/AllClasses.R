@@ -37,13 +37,11 @@ setClass("snpBMAdata",
          })
 
 setClass("snpBMAstrat",
-         representation(strata="factor"),
-         contains="snpBMAdata",
+         representation(.Data="list"),
          validity=function(object) {
-           if(length(object@Y) != nrow(object@.Data))
-             stop("phenotype vector Y must have length == nrow(X)")
-          if(length(object@strata) != nrow(object@.Data))
-             stop("strata vector must have length == nrow(X)")
+           classes <- lapply(object@.Data,class)
+           if(!all(classes=="snpBMAdata"))
+             stop("all elements in a snpBMAstrat object must be of class snpBMAdata")
          })
 
 ################################################################################

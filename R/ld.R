@@ -13,12 +13,12 @@
 ##' @param lines.limit draw faint lines to make separation between SNPs clearer if the number of SNPs is < lines.limit
 show.ld <- function(X, snps=colnames(X), samples=rownames(X), 
                     lines.limit=20) {
- my.colours <- c("#313695", "#4575B4", "#74ADD1", "#ABD9E9", "#E0F3F8", "#FFFFBF",
-                 "#FEE090", "#FDAE61", "#F46D43", "#D73027", "#A50026")
+  my.colours <- c("#313695", "#4575B4", "#74ADD1", "#ABD9E9", "#E0F3F8", "#FFFFBF",
+                  "#FEE090", "#FDAE61", "#F46D43", "#D73027", "#A50026")
   if(!is(X,"SnpMatrix"))
-    stop("X must be a SnpMatrix")
- breaks <- NULL
- groups <- NULL
+    X <- as(X,"SnpMatrix")
+  breaks <- NULL
+  groups <- NULL
   if(is.list(snps)) {
     breaks <- sapply(snps,length)
     groups <- rep(1:length(snps), times=breaks)
@@ -29,7 +29,7 @@ show.ld <- function(X, snps=colnames(X), samples=rownames(X),
            stat=c("D.prime","R.squared"),
            symmetric=TRUE)
   ld <- as.matrix(LD$R.squared)
- wh <- which(upper.tri(ld))
+  wh <- which(upper.tri(ld))
   ld[wh] <- as.matrix(LD$D.prime)[ wh ]
  
  diag(ld) <- 1
@@ -93,6 +93,9 @@ myr2 <- function(X) {
 ##' @author Chris Wallace
 ##' @export
 tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL, strata=NULL) {
+  if(!is(X,"SnpMatrix"))
+    X <- as(X,"SnpMatrix")
+  
   if(!is.null(snps) || !is.null(samples))
     X <- X[samples,snps]
   if(!is.null(strata)) {
@@ -105,42 +108,39 @@ tag <- function(X,tag.threshold=0.99, snps=NULL, samples=NULL, strata=NULL) {
     })
     return(tags)
   }
-    
+  
   r2 <- myr2(X)
   D <- as.dist(1-r2)
   hc <- hclust(D, method="complete")
   clusters <- cutree(hc, h=1-tag.threshold)
   
-##   if(!is.null(strata)) {
-##     strata <- factor(strata)
-##     ## merge clusters for stratified cohorts
-##       for(i in 1:length(levels(strata))) {
-##         wh <- which(strata==levels(strata)[[i]])
-##         if(!length(wh))
-##           next
-##         r2.this <- myr2(X[wh,])
-##         D <- as.dist(1-r2.this)
-##         hc <- hclust(D, method="complete")
-##         y <- cutree(hc, h=1-tag.threshold)
-##         for(xi in unique(clusters)) {
-##           wh <- which(clusters==xi)
-##           if(!length(wh))
-##             next
-##           yi <- y[wh]
-##           if(any(y[-wh] %in% yi))
-##             clusters[ clusters==xi | y %in% yi ] <- xi
-##         }
-##       }
-##     }
-    
   snps.use <- names(clusters)[!duplicated(clusters)]
-  r2.use <- r2[snps.use, colnames(X), drop=FALSE]
-  tags <- rownames(r2.use)[apply(r2.use,2,which.max)]
-  names(tags) <- colnames(r2.use)
+  groups <- split(names(clusters),clusters)
+  
+  ## now process each group, picking best tag
+  n <- sapply(groups,length)
+  names(groups)[n==1] <- unlist(groups[n==1])
+  for(i in which(n>1)) {
+    g <- groups[[i]]
+##     cat(i,g,"\n")
+##     print(r2[g,g])
+    a <- apply(r2[g,g],1,mean)
+    names(groups)[i] <- g[ which.max(a) ]
+  }
+  
+  tags <- rep(names(groups),times=sapply(groups,length))
+  names(tags) <- unlist(groups)
+  
+  ## check
+  r2 <- myr2(X[,names(groups)])
+  diag(r2) <- 0
+##   if(max(r2)==1) 
+##     stop("max r2 still 1!")
+  cat("max r2 is now",max(r2),"\n")
   return(tags)
 }
-
-group.tags <- function(tags, keep) {
-  groups <- tags[ names(tags) %in% keep ]
-  groups <- split(names(groups), groups)
+  
+  group.tags <- function(tags, keep) {
+    groups <- tags[ names(tags) %in% keep ]
+    groups <- split(names(groups), groups)
 }

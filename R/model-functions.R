@@ -341,17 +341,22 @@ snp.sort.models <- function(models, snps) {
 
 mexpand <- function(bma, groups) {
   models <- bma@models
+  bf <- bma@bf  
   if(!all(names(groups) %in% colnames(models)))
     stop("All group index SNPs need to be in existing models\n")
-  newmodels <- NULL
-  for(index.snp in names(groups)) {
-    i <- which(models[,index.snp]==1)
+  newmodels <- newbf <- NULL
+  twoormore <- which(sapply(groups,length)>1)
+  for(igroup in twoormore) {
+    j <- which(colnames(models) %in% groups[[igroup]])
+    if(length(j)>1)
+      stop("2 or more members of a snp group already modelled:\n",
+           paste(groups[igroup],collapse=" "))
+    if(!length(j))                      # nothing to expand
+      next
+    i <- which(models[,j]==1)
     if(!length(i)) # nothing to expand
       next
-    j <- which(colnames(models)==index.snp)
-    if(!length(j)) # nothing to expand
-      next
-    newsnps <- setdiff(groups[[index.snp]],index.snp)
+    newsnps <- setdiff(groups[[igroup]], colnames(models)[j])
     if(!length(newsnps)) # nothing to expand
       next
 
@@ -360,30 +365,41 @@ mexpand <- function(bma, groups) {
     }
 
     ## expand existing models with empty entries for new snps
-    msub <- msub0 <- models[i,,drop=FALSE]
-    mkeep <- models[-i,,drop=FALSE]
-    msub <- mexp(msub)
-    mkeep <- mexp(mkeep)
-    models <- Matrix(0,nrow(models),ncol(msub),dimnames=list(NULL,c(colnames(models),newsnps)))
-    models[i,,drop=FALSE] <- msub
-    models[-i,,drop=FALSE] <- mkeep
-      
+##     mkeep <- models[-i,,drop=FALSE]
+##     msub <- mexp(msub)
+##     mkeep <- mexp(mkeep)
+##     models <- Matrix(0,nrow(models),ncol(msub),dimnames=list(NULL,c(colnames(models),newsnps)))
+##     models[i,,drop=FALSE] <- msub
+##     models[-i,,drop=FALSE] <- mkeep
+    
     ## add new models
-    msub0[,j] <- 0
-    msub2 <- outer.models(msub0,
-                          make.models.single(newsnps, n.use=1, quiet=TRUE))
+    msub0 <- models[i,,drop=FALSE]
+    msub0[,j] <- 0    
+    mnew <- make.models.single(newsnps, n.use=1, quiet=TRUE)
+    msub2 <- outer.models(msub0, mnew)
+    ind <- expand.grid(lapply(list(length(i),nrow(mnew)),
+                              function(n) if(n>0) { 1:n } else { 0 }))[,1]
+    bfnew <- bf[ i[ind], , drop=FALSE]
     if(is.null(newmodels)) {
       newmodels <- msub2
+      newbf <- bfnew
     } else {
       newmodels <- rbind2(mexp(newmodels),msub2)
+      newbf <- rbind(newbf,bfnew)
     }
+    models <- mexp(models)
   }
-  return(list(models=models,newmodels=newmodels))
+  return(list(models=models,newmodels=newmodels,bf=bf,newbf=newbf))
 }
 
-mgrow <- function(bma, quiet=FALSE) {
+mgrow <- function(bma, tags=NULL, quiet=FALSE) {
 
   models <- bma@models
+  if(!is.null(tags)) {
+    models <- models[,unique(tags), drop=FALSE]
+    nm <- rowSums(models)
+    models <- models[ nm==bma@nsnps, , drop=FALSE]
+  }
   groups <- bma@groups
   snps <- colnames(models)
   snps.use <- snps[colSums(models)>0]

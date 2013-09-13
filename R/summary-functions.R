@@ -50,6 +50,11 @@ post.snpBMA <- function(object, priors, snpsep="/") {
   return(new("modelSummary",.Data=pp, snps=snps, snpsep=snpsep))
 }
 
+## tag.expand <- function(tags, tags.99) {
+
+  
+## }
+
 ##' Internal function, logsum
 ##'
 ##' This function calculates the log of the sum of the exponentiated
@@ -91,10 +96,15 @@ logdiff <- function(x,y) {
 ##' @param ... additional arguments passed to \link{post.snpBMA}
 ##' @return matrix of top models and their Bayes Factors
 ##' @author Chris Wallace
-top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL, what="models", groups=NULL, ...) {
+top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL, what="models", tags=NULL, groups=NULL, ...) {
   n <- length(object)
 
-##   priors2 <- priors[1:n]
+  if(!is.null(tags)) {
+#    tags <- tags[ tags %in% object[[1]]@snps ]
+    groups <- split(names(tags),tags)
+  }
+
+  ##   priors2 <- priors[1:n]
   ## if(is.null(prior.odds) & is.null(prior.prob))
   ##   stop("Must specify prior odds OR prior probs")
   ## if(!is.null(prior.prob)) {
@@ -112,7 +122,7 @@ top.snpBMAlist <- function(object,priors,nmodels=6L, min.pp=NULL, min.cpp=NULL, 
   snps <- pp@snps
   snpsep <- pp@snpsep
   pp <- t(t(pp) / colSums(pp))
-   if(what=="snps") {
+  if(what=="snps") {
     snps <- unique(unlist(lapply(object, function(o) o@snps)))
     models <- Matrix(0,sum(r),length(snps),dimnames=list(NULL,snps))
     rc <- c(0,cumsum(r))

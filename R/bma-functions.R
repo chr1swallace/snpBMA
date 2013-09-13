@@ -66,6 +66,7 @@ make.data <- function(X,Y,tag.r2=0.99,family="binomial",strata=NULL, covar=NULL,
                    names=levels(strata))
     for(l in levels(strata)) {
       i <- which(strata==l)
+      cat("\t",l,":\n")
       L[[l]] <- make.data(X=X[i,,drop=FALSE], Y=Y[i], tag.r2=tag.r2, family=family, covar=covar, data=data)
     }
     return(new("snpBMAstrat",.Data=L))
@@ -153,14 +154,20 @@ my.glib <- function(data, models) {
 ##' @param nsnps number of SNPs to include in each model
 ##' @param groups list of character vectors.  Each vector contains a set of SNPs in LD, of which at most one should be included in any model.
 ##' @param models.drop matrix of models that shouldn't be visited.  This option is deprecated, it is better use \code{\link{bma.grow}()} instead.
+##' @param ... arguments passed on to bma.run
 ##' @return object of class snpBMA
 ##' @author Chris Wallace
 ##' @export
-bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
-  if(nsnps<1 || nsnps>ncol(data@.Data))
+bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL, ...) {
+  if(is(data,"snpBMAstrat"))
+    return(mclapply(data, bma.nsnps, nsnps=nsnps, groups=groups, models.drop=models.drop, expand=TRUE))
+
+  maxsnps <- ncol(data@.Data)
+  snps <- snps.use <- colnames(data@.Data)
+    
+  if(nsnps<1 || nsnps>maxsnps)
     stop("nsnps must lie between 1 and ncol(data@X) inclusive")
 
-  snps <- snps.use <- colnames(data@.Data)
   snps.exclude <- character(0)
   if(!is.null(models.drop)) {
     if(is.list(models.drop))
@@ -178,7 +185,7 @@ bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
                     Matrix(0,nmodels,length(snps.exclude),
                            dimnames=list(NULL,snps.exclude),sparse=TRUE))[,snps]
 
-  bma.run(data=data, models=models, nsnps=nsnps, groups=groups)
+  bma.run(data=data, models=models, nsnps=nsnps, groups=groups, ...)
 
 }
 
@@ -191,16 +198,19 @@ bma.nsnps <- function(data, nsnps=1, groups=list(), models.drop=NULL) {
 ##' @return object of class snpBMA
 ##' @author Chris Wallace
 ##' @export
-bma.grow <- function(data, bma) {
+bma.grow <- function(data, bma, ...) {
+
+  if(is(data,"snpBMAstrat"))
+    return(mclapply(data, bma.nsnps, nsnps=nsnps, groups=groups, models.drop=models.drop, expand=TRUE, ...))
 
   nsnps <- bma@nsnps + 1
   if(nsnps<1 || nsnps>ncol(data@.Data))
     stop("bma already contains maximum SNPs")
-  models <- mgrow(bma)
+  models <- mgrow(bma, tags=data@tags)
   if(is.null(models) || !nrow(models))
       return(NULL)
 
-  bma.run(data=data, models=models, nsnps=nsnps, groups=bma@groups)
+  bma.run(data=data, models=models, nsnps=nsnps, groups=bma@groups, ...)
 
 }
 ##' Expand SNP models to include selected tagged SNPs
@@ -211,45 +221,84 @@ bma.grow <- function(data, bma) {
 ##' @param groups named list,  with names equal to all SNPs to be included and 
 ##' @return  object of class snpBMA
 ##' @author Chris Wallace
-bma.expand <- function(data, bma, groups) {
+bma.expand <- function(data=NULL, bma, tags, method=c("eval","approx")) {
 
     if(is.null(bma))
         return(NULL)
+
+    method <- match.arg(method)
     
-  rval <- mexpand(bma, groups[ intersect(names(groups),bma@snps) ])
+    if(is.null(data) && method=="eval")
+      stop("cannot evaluate models, please supply data")
+
+    tags <- tags[ tags %in% bma@snps ]
+    tgroups <- split(names(tags),tags)
+    rval <- mexpand(bma=bma, groups=tgroups)
     models <- rval$models
     newmodels <- rval$newmodels
 
-    cat("Expanding",nrow(models),"models by",nrow(newmodels),"additional models.\n")
-    
-    newbma <- bma.run(data=data[,colnames(newmodels)],
-                      models=newmodels,
-                      nsnps=bma@nsnps,
-                      groups=groups)
+    cat("Expanding",nrow(models),"models by",nrow(newmodels),"additional models by ")
 
-    newbma@models <- rbind2(models,newbma@models)
-    newbma@bf <- rbind(bma@bf,newbma@bf)    
-    return(newbma)
+    if(method=="eval") {
+      cat("evaluating them individually.\n")
+      newbma <- bma.run(data=data[,colnames(newmodels)],
+                        models=newmodels,
+                        nsnps=bma@nsnps,
+                        groups=groups)
+      newbma@models <- rbind2(models,newbma@models)
+      newbma@bf <- rbind(bma@bf,newbma@bf)
+      newbma@snps <- unique(c(bma@snps, names(tags)))
+      return(newbma)
+    }
+
+    if(method=="approx") {
+      cat("approximating using tags.\n")
+      bma@models <- rbind2(rval$models,rval$newmodels)
+      bma@bf <- rbind(rval$bf, rval$newbf)
+      bma@snps <- unique(c(bma@snps, names(tags)))
+      return(bma)
+    }
 
 }
 
 
-bma.run <- function(data, models, nsnps, groups) {
+bma.run <- function(data, models, nsnps, groups, expand=FALSE, method=c("BMA","mvlr")) {
 
-  if(is(data, "snpBMAstrat")) {
-    cat("Stratum 1\t")
-    bma <-  lapply(data@.Data, bma.run, models, nsnps, groups)
-  }
-  
-  x <- my.glib(data=data, models=models)
-  return(new("snpBMA",
+##   if(is(data, "snpBMAstrat")) {
+##     cat("Stratum 1\t")
+##     bma <-  lapply(data@.Data, bma.run, models, nsnps, groups)
+##   }
+
+  method <- match.arg(method)
+  if(method=="BMA") {  
+    x <- my.glib(data=data, models=models)
+    bma <- new("snpBMA",
                nsnps=nsnps,
                nmodels=max.models(snps=unique(data@tags), n.use=nsnps, groups=groups),
                snps=data@tags,
                groups=groups,
                bf=x$bf,
                models=as(x$models,"dgCMatrix"),
-               prior=x$prior))
+               prior=x$prior)
+  }
+
+  if(method=="mvlr") {
+    cat("Evaluating",nrow(models),"by MVLR abf.\n")
+    x <- my.mvlr(data=data, models=models)
+    bma <- new("snpBMA",
+               nsnps=nsnps,
+               nmodels=max.models(snps=unique(data@tags), n.use=nsnps, groups=groups),
+               snps=data@tags,
+               groups=groups,
+               bf=matrix(x,nrow=length(x),ncol=3),
+               models=as(models,"dgCMatrix"),
+               prior=list())
+   }
+
+  if(expand)
+    bma <- bma.expand(data, bma, groups, method="approx")
+
+  return(bma)
   
 
 }

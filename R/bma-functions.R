@@ -4,7 +4,6 @@ library(pheatmap)
 library(reshape)
 
 
-
 bind.2.old <- function(x,y) {
   n <- nrow(x)
   m <- nrow(y)

@@ -198,6 +198,7 @@ make.models <- function(snps,n.use,groups=list(),quiet=FALSE) {
 models.diff <- function(parents, children, ...) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
+      
   return(mcomp.detail(m.parent=parents@models, m.child=children@models,
                       bf.parent=parents@bf, bf.child=children@bf,
                       ntarget=parents@nsnps, what="drop", ...))
@@ -218,6 +219,22 @@ models.diff <- function(parents, children, ...) {
 models.prune <- function(parents, children, ...) {
   ## for each child model, identify its parents
   ## models to drop should be defined as the set with any 2*logbf(parent/child) > 2*log(rel.prior) + 2*lbf
+  ## par.strat <- is("snpBMAstrat",parents)
+  ## child.strat <- is("snpBMAstrat",child)
+  ## if(par.strat != child.strat)
+  ##   stop("parents and children must be of same class")
+  ## if(par.strat) {
+  ##   L <- vector("list",length(par.strat))
+  ##   names(L) <- names(par.strat)
+  ##   for(i in 1:length(L)) {
+  ##     L[[i]]
+
+  ## to do this with stratified, need first to add a function to expand by tags
+  ## then the parent and child models should be the same across strata
+  ## do comparison within strata and sum
+  ## reduce models
+  ## then reduce models within each strata according to strata specific tags
+  
   newmodels <- mcomp.detail(m.parent=parents@models, m.child=children@models,
                             bf.parent=parents@bf, bf.child=children@bf,
                             ntarget=parents@nsnps, n.child=children@nsnps, what="keep", ...)

@@ -193,13 +193,13 @@ snp.summary <- function(object, do.order=TRUE) {
     return(snp.bf)
   }
   snp.bf <- Matrix::t(object@models) %*% object@bf
-  ## add in tags
-  toadd <- setdiff(names(object@tags),object@tags)
-  if(length(toadd)) {
-    bf.toadd <- snp.bf[ object@tags[toadd], ]
-    rownames(bf.toadd) <- toadd
-    snp.bf <- rbind(snp.bf, bf.toadd)
-  }
+##   ## add in tags
+##   toadd <- setdiff(names(object@tags),object@tags)
+##   if(length(toadd)) {
+##     bf.toadd <- snp.bf[ object@tags[toadd], ]
+##     rownames(bf.toadd) <- toadd
+##     snp.bf <- rbind(snp.bf, bf.toadd)
+##   }
   ## drop snps not in any models
   rs <- rowSums(abs(snp.bf))
   snp.bf <- snp.bf[rs>0,,drop=FALSE]
